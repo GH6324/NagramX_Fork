@@ -1452,6 +1452,12 @@ object NaConfig {
             ConfigItem.configTypeBool,
             true
         )
+   val forceEdgeToEdge =
+        addConfig(
+            "ForceEdgeToEdge",
+            ConfigItem.configTypeBool,
+            false
+        )
 
     val preferredTranslateTargetLangList = ArrayList<String>()
     fun updatePreferredTranslateTargetLangList() {

@@ -9,10 +9,8 @@ import android.animation.ValueAnimator;
 import android.annotation.SuppressLint;
 import android.content.Context;
 import android.content.Intent;
-import android.content.SharedPreferences;
 import android.graphics.Canvas;
 import android.graphics.Paint;
-import android.os.Build;
 import android.os.Parcelable;
 import android.text.TextPaint;
 import android.transition.TransitionManager;
@@ -22,15 +20,12 @@ import android.view.ViewGroup;
 import android.widget.FrameLayout;
 
 import androidx.annotation.NonNull;
-import androidx.recyclerview.widget.DefaultItemAnimator;
-import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 
 import org.telegram.messenger.AndroidUtilities;
 import org.telegram.messenger.ApplicationLoader;
 import org.telegram.messenger.ContactsController;
 import org.telegram.messenger.LocaleController;
-import org.telegram.messenger.MessagesController;
 import org.telegram.messenger.NotificationCenter;
 import org.telegram.messenger.NotificationsService;
 import org.telegram.messenger.R;
@@ -49,8 +44,6 @@ import org.telegram.ui.Cells.TextCheckCell;
 import org.telegram.ui.Cells.TextDetailSettingsCell;
 import org.telegram.ui.Cells.TextInfoPrivacyCell;
 import org.telegram.ui.Cells.TextSettingsCell;
-import org.telegram.ui.Components.BlurredRecyclerView;
-import org.telegram.ui.Components.CubicBezierInterpolator;
 import org.telegram.ui.Components.LayoutHelper;
 import org.telegram.ui.Components.RecyclerListView;
 import org.telegram.ui.Components.SeekBarView;
@@ -79,14 +72,14 @@ import tw.nekomimi.nekogram.utils.AndroidUtil;
 import xyz.nextalone.nagram.NaConfig;
 
 @SuppressLint("RtlHardcoded")
-@SuppressWarnings("unused")
+@SuppressWarnings({"unused", "FieldCanBeLocal"})
 public class NekoGeneralSettingsActivity extends BaseNekoXSettingsActivity {
 
     private ListAdapter listAdapter;
     private ValueAnimator statusBarColorAnimator;
     private DrawerProfilePreviewCell profilePreviewCell;
     private ChatBlurAlphaSeekBar chatBlurAlphaSeekbar;
-    private UndoView restartTooltip;
+    private Parcelable recyclerViewState = null;
 
     private boolean wasCentered = false;
     private boolean wasCenteredAtBeginning = false;
@@ -363,12 +356,8 @@ public class NekoGeneralSettingsActivity extends BaseNekoXSettingsActivity {
     @SuppressLint({"NewApi", "NotifyDataSetChanged", "UseCompatLoadingForDrawables"})
     @Override
     public View createView(Context context) {
-        actionBar.setBackButtonImage(R.drawable.ic_ab_back);
-        actionBar.setTitle(getTitle());
+        View superView = super.createView(context);
 
-        if (AndroidUtilities.isTablet()) {
-            actionBar.setOccupyStatusBar(false);
-        }
         actionBar.setActionBarMenuOnItemClick(new ActionBar.ActionBarMenuOnItemClick() {
             @Override
             public void onItemClick(int id) {
@@ -380,22 +369,9 @@ public class NekoGeneralSettingsActivity extends BaseNekoXSettingsActivity {
 
         listAdapter = new ListAdapter(context);
 
-        fragmentView = new FrameLayout(context);
-        fragmentView.setBackgroundColor(Theme.getColor(Theme.key_windowBackgroundGray));
-        FrameLayout frameLayout = (FrameLayout) fragmentView;
+        // Before listAdapter
+        setCanNotChange();
 
-        listView = new BlurredRecyclerView(context);
-        listView.setVerticalScrollBarEnabled(false);
-        listView.setLayoutManager(layoutManager = new LinearLayoutManager(context, LinearLayoutManager.VERTICAL, false));
-
-        DefaultItemAnimator itemAnimator = new DefaultItemAnimator();
-        itemAnimator.setChangeDuration(350);
-        itemAnimator.setInterpolator(CubicBezierInterpolator.EASE_OUT_QUINT);
-        itemAnimator.setDelayAnimations(false);
-        itemAnimator.setSupportsChangeAnimations(false);
-        listView.setItemAnimator(itemAnimator);
-
-        frameLayout.addView(listView, LayoutHelper.createFrame(LayoutHelper.MATCH_PARENT, LayoutHelper.MATCH_PARENT, Gravity.TOP | Gravity.LEFT));
         listView.setAdapter(listAdapter);
 
         // Fragment: Set OnClick Callbacks
@@ -443,15 +419,15 @@ public class NekoGeneralSettingsActivity extends BaseNekoXSettingsActivity {
                 getNotificationCenter().postNotificationName(NotificationCenter.mainUserInfoChanged);
                 listAdapter.notifyItemChanged(cellGroup.rows.indexOf(profilePreviewRow));
             } else if (key.equals(NekoConfig.transparentStatusBar.getKey())) {
-                restartTooltip.showWithAction(0, UndoView.ACTION_NEED_RESTART, null, null);
+                tooltip.showWithAction(0, UndoView.ACTION_NEED_RESTART, null, null);
             } else if (key.equals(NekoConfig.actionBarDecoration.getKey())) {
-                restartTooltip.showWithAction(0, UndoView.ACTION_NEED_RESTART, null, null);
+                tooltip.showWithAction(0, UndoView.ACTION_NEED_RESTART, null, null);
             } else if (key.equals(NaConfig.INSTANCE.getNotificationIcon().getKey())) {
-                restartTooltip.showWithAction(0, UndoView.ACTION_NEED_RESTART, null, null);
+                tooltip.showWithAction(0, UndoView.ACTION_NEED_RESTART, null, null);
             } else if (key.equals(NekoConfig.tabletMode.getKey())) {
-                restartTooltip.showWithAction(0, UndoView.ACTION_NEED_RESTART, null, null);
+                tooltip.showWithAction(0, UndoView.ACTION_NEED_RESTART, null, null);
             } else if (key.equals(NekoConfig.newYear.getKey())) {
-                restartTooltip.showWithAction(0, UndoView.ACTION_NEED_RESTART, null, null);
+                tooltip.showWithAction(0, UndoView.ACTION_NEED_RESTART, null, null);
             } else if (key.equals(NekoConfig.disableSystemAccount.getKey())) {
                 if ((boolean) newValue) {
                     getContactsController().deleteUnknownAppAccounts();
@@ -526,87 +502,61 @@ public class NekoGeneralSettingsActivity extends BaseNekoXSettingsActivity {
                     }
                     AndroidUtilities.runOnUIThread(() -> context.stopService(new Intent(context, NotificationsService.class)));
                 }
-                restartTooltip.showWithAction(0, UndoView.ACTION_NEED_RESTART, null, null);
+                tooltip.showWithAction(0, UndoView.ACTION_NEED_RESTART, null, null);
             } else if (key.equals(NaConfig.INSTANCE.getPushServiceTypeInAppDialog().getKey())) {
                 ApplicationLoader.applicationContext.stopService(new Intent(ApplicationLoader.applicationContext, NotificationsService.class));
                 ApplicationLoader.startPushService();
             } else if (key.equals(NaConfig.INSTANCE.getPushServiceTypeUnifiedGateway().getKey())) {
-                restartTooltip.showWithAction(0, UndoView.ACTION_NEED_RESTART, null, null);
+                tooltip.showWithAction(0, UndoView.ACTION_NEED_RESTART, null, null);
             } else if (key.equals(NaConfig.INSTANCE.getDisableCrashlyticsCollection().getKey())) {
-                restartTooltip.showWithAction(0, UndoView.ACTION_NEED_RESTART, null, null);
+                tooltip.showWithAction(0, UndoView.ACTION_NEED_RESTART, null, null);
             } else if (key.equals(NaConfig.INSTANCE.getCustomTitleUserName().getKey())) {
                 boolean enabled = (Boolean) newValue;
-                if (enabled) {
-                    if (cellGroup.rows.contains(customTitleRow)) {
-                        final int index = cellGroup.rows.indexOf(customTitleRow);
-                        cellGroup.rows.remove(customTitleRow);
-                        listAdapter.notifyItemRemoved(index);
-                    }
-                } else {
-                    if (!cellGroup.rows.contains(customTitleRow)) {
-                        final int index = cellGroup.rows.indexOf(headerGeneral) + 1;
-                        cellGroup.rows.add(index, customTitleRow);
-                        listAdapter.notifyItemInserted(index);
-                    }
-                }
-                restartTooltip.showWithAction(0, UndoView.ACTION_NEED_RESTART, null, null);
+                ((ConfigCellTextInput) customTitleRow).setEnabled(!enabled);
+                listAdapter.notifyItemChanged(cellGroup.rows.indexOf(customTitleRow));
+                tooltip.showWithAction(0, UndoView.ACTION_NEED_RESTART, null, null);
             } else if (key.equals(NaConfig.INSTANCE.getIgnoreUnreadCount().getKey())) {
-                restartTooltip.showWithAction(0, UndoView.ACTION_NEED_RESTART, null, null);
+                tooltip.showWithAction(0, UndoView.ACTION_NEED_RESTART, null, null);
             } else if (key.equals(NekoConfig.useProxyItem.getKey())) {
                 NotificationCenter.getGlobalInstance().postNotificationName(NotificationCenter.reloadInterface);
             } else if (key.equals(NekoConfig.hideProxyByDefault.getKey())) {
                 NotificationCenter.getGlobalInstance().postNotificationName(NotificationCenter.reloadInterface);
             } else if (key.equals(NekoConfig.hideAllTab.getKey())) {
-                restartTooltip.showWithAction(0, UndoView.ACTION_NEED_RESTART, null, null);
+                tooltip.showWithAction(0, UndoView.ACTION_NEED_RESTART, null, null);
             } else if (key.equals(NaConfig.INSTANCE.getCenterActionBarTitleType().getKey())) {
                 int value = (int) newValue;
                 NaConfig.INSTANCE.getCenterActionBarTitle().setConfigBool(value != 0);
                 animateActionBarUpdate(this);
             } else if (key.equals(NaConfig.INSTANCE.getHideArchive().getKey())) {
-                boolean enabled = (boolean) newValue;
-                if (enabled) {
-                    if (cellGroup.rows.contains(openArchiveOnPullRow)) {
-                        final int index = cellGroup.rows.indexOf(openArchiveOnPullRow);
-                        cellGroup.rows.remove(openArchiveOnPullRow);
-                        listAdapter.notifyItemRemoved(index);
-                    }
-                } else {
-                    if (!cellGroup.rows.contains(openArchiveOnPullRow)) {
-                        final int index = cellGroup.rows.indexOf(doNotUnarchiveBySwipeRow) + 1;
-                        cellGroup.rows.add(index, openArchiveOnPullRow);
-                        listAdapter.notifyItemInserted(index);
-                    }
-                }
-                restartTooltip.showWithAction(0, UndoView.ACTION_NEED_RESTART, null, null);
+                setCanNotChange();
+                listAdapter.notifyItemChanged(cellGroup.rows.indexOf(openArchiveOnPullRow));
+                tooltip.showWithAction(0, UndoView.ACTION_NEED_RESTART, null, null);
             } else if (key.equals(NaConfig.INSTANCE.getDisableBotOpenButton().getKey())) {
-                restartTooltip.showWithAction(0, UndoView.ACTION_NEED_RESTART, null, null);
+                tooltip.showWithAction(0, UndoView.ACTION_NEED_RESTART, null, null);
             } else if (key.equals(NaConfig.INSTANCE.getHideDividers().getKey())) {
-                restartTooltip.showWithAction(0, UndoView.ACTION_NEED_RESTART, null, null);
+                tooltip.showWithAction(0, UndoView.ACTION_NEED_RESTART, null, null);
             } else if (key.equals(NaConfig.INSTANCE.getIconReplacements().getKey())) {
-                restartTooltip.showWithAction(0, UndoView.ACTION_NEED_RESTART, null, null);
+                tooltip.showWithAction(0, UndoView.ACTION_NEED_RESTART, null, null);
             } else if (key.equals(NaConfig.INSTANCE.getSquareFloatingActionButton().getKey())) {
                 restartTooltip.showWithAction(0, UndoView.ACTION_NEED_RESTART, null, null);
             } else if (key.equals(NekoConfig.usePersianCalendar.getKey())) {
                 restartTooltip.showWithAction(0, UndoView.ACTION_NEED_RESTART, null, null);
             } else if (key.equals(NaConfig.INSTANCE.getIosSearchPanel().getKey())) {
-                restartTooltip.showWithAction(0, UndoView.ACTION_NEED_RESTART, null, null);
+                tooltip.showWithAction(0, UndoView.ACTION_NEED_RESTART, null, null);
             } else if (key.equals(NekoConfig.dnsType.getKey())) {
                 checkCustomDoHCellRows();
-                restartTooltip.showWithAction(0, UndoView.ACTION_NEED_RESTART, null, null);
+                tooltip.showWithAction(0, UndoView.ACTION_NEED_RESTART, null, null);
             } else if (key.equals(NekoConfig.typeface.getKey())) {
-                restartTooltip.showWithAction(0, UndoView.ACTION_NEED_RESTART, null, null);
+                tooltip.showWithAction(0, UndoView.ACTION_NEED_RESTART, null, null);
             } else if (key.equals(NaConfig.INSTANCE.getDisableDialogsFloatingButton().getKey())) {
-                restartTooltip.showWithAction(0, UndoView.ACTION_NEED_RESTART, null, null);
+                tooltip.showWithAction(0, UndoView.ACTION_NEED_RESTART, null, null);
             }
         };
 
         //Cells: Set ListAdapter
         cellGroup.setListAdapter(listView, listAdapter);
 
-        restartTooltip = new UndoView(context);
-        frameLayout.addView(restartTooltip, LayoutHelper.createFrame(LayoutHelper.MATCH_PARENT, LayoutHelper.WRAP_CONTENT, Gravity.BOTTOM | Gravity.LEFT, 8, 0, 8, 8));
-
-        return fragmentView;
+        return superView;
     }
 
     private class ConfigCellDrawerProfilePreview extends AbstractConfigCell {
