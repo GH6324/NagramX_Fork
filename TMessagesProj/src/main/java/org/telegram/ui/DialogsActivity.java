@@ -1015,9 +1015,8 @@ public class DialogsActivity extends BaseFragment implements NotificationCenter.
                 }
                 if (rightSlidingDialogContainer.hasFragment()) {
                     float scrollOffset = rightFragmentTransitionIsOpen ? 0 : scrollYOffset;
-                    boolean iosSearchOn = NaConfig.INSTANCE.getIosSearchPanel().Bool();
-                    boolean isTopicsPreview = rightSlidingDialogContainer.getFragment() instanceof org.telegram.ui.TopicsFragment;
-                    boolean iosSearchVisible = iosSearchOn && filterTabsView != null && filterTabsView.getGlobalSearchView() != null && filterTabsView.getGlobalSearchView().getVisibility() == View.VISIBLE;
+                    boolean isTopicsPreview = isTopicsPreviewActive();
+                    boolean iosSearchVisible = isIosSearchPanelVisible();
                     float extraAmplitude = (iosSearchVisible && isTopicsPreview) ? AndroidUtilities.dp(42) : 0f;
                     float opened = rightSlidingDialogContainer.openedProgress;
                     float base = AndroidUtilities.lerp(-scrollOffset, scrollOffset, opened);
@@ -1170,13 +1169,8 @@ public class DialogsActivity extends BaseFragment implements NotificationCenter.
                 } else if (child instanceof ViewPage) {
                     int contentWidthSpec = View.MeasureSpec.makeMeasureSpec(widthSize, View.MeasureSpec.EXACTLY);
                     int h = heightSize - inputFieldHeight + dp(2) - topPadding;
-                    boolean iosSearchOn = NaConfig.INSTANCE.getIosSearchPanel().Bool();
-                    boolean isTopicsPreview = rightSlidingDialogContainer != null
-                            && rightSlidingDialogContainer.hasFragment()
-                            && rightSlidingDialogContainer.getFragment() instanceof org.telegram.ui.TopicsFragment;
-                    boolean iosSearchVisible = iosSearchOn && filterTabsView != null
-                            && filterTabsView.getGlobalSearchView() != null
-                            && filterTabsView.getGlobalSearchView().getVisibility() == View.VISIBLE;
+                    boolean isTopicsPreview = isTopicsPreviewActive();
+                    boolean iosSearchVisible = isIosSearchPanelVisible();
 
                     if (iosSearchVisible && isTopicsPreview) {
                         h += dp(42);
@@ -1915,9 +1909,8 @@ public class DialogsActivity extends BaseFragment implements NotificationCenter.
             DialogCell selectedCell = null;
 
             float scrollOffset = rightFragmentTransitionIsOpen ? 0 : scrollYOffset;
-            boolean iosSearchOnForCells = NaConfig.INSTANCE.getIosSearchPanel().Bool();
-            boolean isTopicsPreviewForCells = rightSlidingDialogContainer != null && rightSlidingDialogContainer.hasFragment() && rightSlidingDialogContainer.getFragment() instanceof org.telegram.ui.TopicsFragment;
-            boolean iosSearchVisibleForCells = iosSearchOnForCells && filterTabsView != null && filterTabsView.getGlobalSearchView() != null && filterTabsView.getGlobalSearchView().getVisibility() == View.VISIBLE;
+            boolean isTopicsPreviewForCells = isTopicsPreviewActive();
+            boolean iosSearchVisibleForCells = isIosSearchPanelVisible();
             float extraAmplitudeForCells = (iosSearchVisibleForCells && isTopicsPreviewForCells) ? AndroidUtilities.dp(42) : 0f;
             float openedForCells = rightFragmentOpenedProgress;
             float baseForCells = AndroidUtilities.lerp(-scrollOffset, scrollOffset, openedForCells);
@@ -2146,7 +2139,7 @@ public class DialogsActivity extends BaseFragment implements NotificationCenter.
                 if (hasStories || (filterTabsView != null && filterTabsView.getVisibility() == VISIBLE)) {
                     t = ActionBar.getCurrentActionBarHeight() + (actionBar.getOccupyStatusBar() ? AndroidUtilities.statusBarHeight : 0);
                     // Add iOS search panel height if enabled
-                    if (filterTabsView != null && filterTabsView.getVisibility() == VISIBLE && NaConfig.INSTANCE.getIosSearchPanel().Bool() && filterTabsView.getGlobalSearchView() != null && filterTabsView.getGlobalSearchView().getVisibility() == View.VISIBLE) {
+                    if (shouldShowIosSearchPanelInTabs()) {
                         t += AndroidUtilities.dp(42);
                     }
                 } else {
@@ -3334,7 +3327,7 @@ public class DialogsActivity extends BaseFragment implements NotificationCenter.
                     optionsItem.setVisibility(View.VISIBLE);
                 }
                 // Restore iOS search panel visibility when search collapses
-                if (filterTabsView != null && filterTabsView.getGlobalSearchView() != null && NaConfig.INSTANCE.getIosSearchPanel().Bool()) {
+                if (hasGlobalSearchView() && isIosSearchPanelEnabled()) {
                     filterTabsView.getGlobalSearchView().setVisibility(View.VISIBLE);
                 }
             }
@@ -3530,13 +3523,12 @@ public class DialogsActivity extends BaseFragment implements NotificationCenter.
             canShowFilterTabsView = false;
 
             // Hide search button only if there are folders (tabs) visible NOW; otherwise keep it visible.
-            if (NaConfig.INSTANCE.getIosSearchPanel().Bool()) {
-                boolean hasFolders = getMessagesController().getDialogFilters() != null && getMessagesController().getDialogFilters().size() > 1;
-                searchItem.setVisibility(hasFolders ? View.GONE : View.VISIBLE);
+            if (isIosSearchPanelEnabled()) {
+                updateSearchItemVisibility(searchItem);
                 // If folders list is not yet loaded on first app launch, keep button visible until filters arrive.
                 // When filters arrive, dialogFiltersUpdated will re-evaluate.
-                if (filterTabsView != null && filterTabsView.getGlobalSearchView() != null) {
-                    filterTabsView.setGlobalSearchVisible(hasFolders);
+                if (hasGlobalSearchView()) {
+                    filterTabsView.setGlobalSearchVisible(hasMultipleFolders());
                 }
             }
             filterTabsView.setDelegate(new FilterTabsView.FilterTabsViewDelegate() {
@@ -3903,7 +3895,7 @@ public class DialogsActivity extends BaseFragment implements NotificationCenter.
                     presentFragment(new ProxyListActivity());
                 } else if (id == 3) {
 					// Immediately hide iOS-style search panel before opening downloads/search
-					if (filterTabsView != null && filterTabsView.getGlobalSearchView() != null) {
+					if (hasGlobalSearchView()) {
 						filterTabsView.getGlobalSearchView().setVisibility(View.GONE);
 					}
                     showSearch(true, true, true);
@@ -4272,7 +4264,7 @@ public class DialogsActivity extends BaseFragment implements NotificationCenter.
                     }
 
 
-                    if (measuredDy > 0 && filterTabsView != null && filterTabsView.getVisibility() == View.VISIBLE && NaConfig.INSTANCE.getIosSearchPanel().Bool()) {
+                    if (measuredDy > 0 && filterTabsView != null && filterTabsView.getVisibility() == View.VISIBLE && isIosSearchPanelEnabled()) {
                         int totalHeight = 0;
                         int count = viewPage.dialogsAdapter.getItemCount();
                         int maxVisibleHeight = viewPage.listView.getHeight() - viewPage.listView.getPaddingTop();
@@ -4648,8 +4640,8 @@ public class DialogsActivity extends BaseFragment implements NotificationCenter.
                         FileLog.e(e);
                     }
                     if (initialDialogsType == DIALOGS_TYPE_BOT_REQUEST_PEER) {
-                        if (NaConfig.INSTANCE.getIosSearchPanel().Bool()) {
-                            boolean hasFolders = getMessagesController().getDialogFilters() != null && getMessagesController().getDialogFilters().size() > 1;
+                        if (isIosSearchPanelEnabled()) {
+                            boolean hasFolders = hasMultipleFolders();
                             searchItem.setVisibility(isEmpty || hasFolders ? View.GONE : View.VISIBLE);
                         } else {
                             searchItem.setVisibility(isEmpty ? View.GONE : View.VISIBLE);
@@ -5159,7 +5151,7 @@ public class DialogsActivity extends BaseFragment implements NotificationCenter.
 
 
         if (filterTabsView != null) {
-            int filterTabsHeight = 44 + (NaConfig.INSTANCE.getIosSearchPanel().Bool() ? 42 : 0);
+            int filterTabsHeight = 44 + (isIosSearchPanelEnabled() ? 42 : 0);
             contentView.addView(filterTabsView, LayoutHelper.createFrame(LayoutHelper.MATCH_PARENT, filterTabsHeight));
         }
 
@@ -7787,9 +7779,8 @@ public class DialogsActivity extends BaseFragment implements NotificationCenter.
                 viewPages[0].listView.setVisibility(View.VISIBLE);
                 viewPages[0].setVisibility(View.VISIBLE);
                 // When iOS search panel is enabled, hide the top-right search button only if folders (tabs) are present; otherwise keep it visible
-                if (searchItem != null && NaConfig.INSTANCE.getIosSearchPanel().Bool()) {
-                    boolean hasFolders = getMessagesController().getDialogFilters() != null && getMessagesController().getDialogFilters().size() > 1;
-                    searchItem.setVisibility(hasFolders ? View.GONE : View.VISIBLE);
+                if (searchItem != null && isIosSearchPanelEnabled()) {
+                    updateSearchItemVisibility(searchItem);
                 }
             }
 
@@ -7927,9 +7918,8 @@ public class DialogsActivity extends BaseFragment implements NotificationCenter.
                             rightSlidingDialogContainer.setVisibility(View.VISIBLE);
                         }
                         // When iOS search panel is enabled, hide the top-right search button only if folders (tabs) are present; otherwise keep it visible
-                        if (searchItem != null && NaConfig.INSTANCE.getIosSearchPanel().Bool()) {
-                            boolean hasFolders = getMessagesController().getDialogFilters() != null && getMessagesController().getDialogFilters().size() > 1;
-                            searchItem.setVisibility(hasFolders ? View.GONE : View.VISIBLE);
+                        if (searchItem != null && isIosSearchPanelEnabled()) {
+                            updateSearchItemVisibility(searchItem);
                         }
                     }
 
@@ -8021,9 +8011,8 @@ public class DialogsActivity extends BaseFragment implements NotificationCenter.
             }
 
             // Ensure: if no folders (tabs), keep search button visible as fallback
-            if (!show && searchItem != null && NaConfig.INSTANCE.getIosSearchPanel().Bool()) {
-                boolean hasFolders = getMessagesController().getDialogFilters() != null && getMessagesController().getDialogFilters().size() > 1;
-                searchItem.setVisibility(hasFolders ? View.GONE : View.VISIBLE);
+            if (!show && searchItem != null && isIosSearchPanelEnabled()) {
+                updateSearchItemVisibility(searchItem);
             }
         }
         if (initialSearchType >= 0 && searchViewPager != null) {
@@ -10612,9 +10601,8 @@ public class DialogsActivity extends BaseFragment implements NotificationCenter.
                 background.jumpToCurrentState();
             }
             if (searchItem != null) {
-                if (NaConfig.INSTANCE.getIosSearchPanel().Bool()) {
-                    boolean hasFolders = getMessagesController().getDialogFilters() != null && getMessagesController().getDialogFilters().size() > 1;
-                    searchItem.setVisibility(hasFolders ? View.GONE : View.VISIBLE);
+                if (isIosSearchPanelEnabled()) {
+                    updateSearchItemVisibility(searchItem);
                 } else {
                     searchItem.setVisibility(View.VISIBLE);
                 }
@@ -10645,8 +10633,8 @@ public class DialogsActivity extends BaseFragment implements NotificationCenter.
                 doneItemAnimator = null;
                 if (show) {
                     if (searchItem != null) {
-                        if (NaConfig.INSTANCE.getIosSearchPanel().Bool()) {
-                            boolean hasFolders = getMessagesController().getDialogFilters() != null && getMessagesController().getDialogFilters().size() > 1;
+                        if (isIosSearchPanelEnabled()) {
+                            boolean hasFolders = hasMultipleFolders();
                             searchItem.setVisibility(hasFolders ? View.GONE : View.INVISIBLE);
                         } else {
                             searchItem.setVisibility(View.INVISIBLE);
@@ -11150,12 +11138,12 @@ public class DialogsActivity extends BaseFragment implements NotificationCenter.
         } else if (id == NotificationCenter.dialogFiltersUpdated) {
             updateFilterTabs(true, true);
             // Re-evaluate search entry points when folders availability changes
-            if (NaConfig.INSTANCE.getIosSearchPanel().Bool()) {
-                boolean hasFolders = getMessagesController().getDialogFilters() != null && getMessagesController().getDialogFilters().size() > 1;
+            if (isIosSearchPanelEnabled()) {
+                boolean hasFolders = hasMultipleFolders();
                 if (searchItem != null) {
                     searchItem.setVisibility(hasFolders ? View.GONE : View.VISIBLE);
                 }
-                if (filterTabsView != null && filterTabsView.getGlobalSearchView() != null) {
+                if (hasGlobalSearchView()) {
                     filterTabsView.setGlobalSearchVisible(hasFolders);
                 }
             }
@@ -14044,5 +14032,44 @@ public class DialogsActivity extends BaseFragment implements NotificationCenter.
     @Override
     public boolean isSupportEdgeToEdge() {
         return NaConfig.INSTANCE.getForceEdgeToEdge().Bool();
+    }
+
+    private boolean isIosSearchPanelEnabled() {
+        return NaConfig.INSTANCE.getIosSearchPanel().Bool();
+    }
+
+    private boolean isTopicsPreviewActive() {
+        return rightSlidingDialogContainer != null
+                && rightSlidingDialogContainer.hasFragment()
+                && rightSlidingDialogContainer.getFragment() instanceof org.telegram.ui.TopicsFragment;
+    }
+
+    private boolean hasGlobalSearchView() {
+        return filterTabsView != null && filterTabsView.getGlobalSearchView() != null;
+    }
+
+    private boolean isIosSearchPanelVisible() {
+        return isIosSearchPanelEnabled()
+                && hasGlobalSearchView()
+                && filterTabsView.getGlobalSearchView().getVisibility() == View.VISIBLE;
+    }
+
+    private boolean shouldShowIosSearchPanelInTabs() {
+        return filterTabsView != null
+                && filterTabsView.getVisibility() == View.VISIBLE
+                && isIosSearchPanelEnabled()
+                && hasGlobalSearchView()
+                && filterTabsView.getGlobalSearchView().getVisibility() == View.VISIBLE;
+    }
+
+    private boolean hasMultipleFolders() {
+        return getMessagesController().getDialogFilters() != null
+                && getMessagesController().getDialogFilters().size() > 1;
+    }
+
+    private void updateSearchItemVisibility(ActionBarMenuItem searchItem) {
+        if (searchItem != null) {
+            searchItem.setVisibility(hasMultipleFolders() ? View.GONE : View.VISIBLE);
+        }
     }
 }

@@ -1236,14 +1236,12 @@ public class FilterTabsView extends FrameLayout {
                 searchClickListener.run();
             }
         });
-        boolean iosPanel = NaConfig.INSTANCE.getIosSearchPanel().Bool();
-        boolean hasFolders = MessagesController.getInstance(UserConfig.selectedAccount).getDialogFilters() != null && MessagesController.getInstance(UserConfig.selectedAccount).getDialogFilters().size() > 1;
-        boolean showSearchBar = iosPanel && hasFolders;
+        boolean showSearchBar = isIosSearchPanelEnabled() && hasMultipleFolders();
         globalSearchView.setVisibility(showSearchBar ? View.VISIBLE : View.GONE);
         addView(globalSearchView, LayoutHelper.createFrame(LayoutHelper.MATCH_PARENT, 42, Gravity.TOP, 0, 0, 0, 0));
 
         // If filters likely not loaded yet at first launch, add top margin preemptively to prevent overlap.
-        int initialTopMargin = iosPanel ? AndroidUtilities.dp(42) : 0;
+        int initialTopMargin = isIosSearchPanelEnabled() ? AndroidUtilities.dp(42) : 0;
         addView(listView, LayoutHelper.createFrame(LayoutHelper.MATCH_PARENT, LayoutHelper.MATCH_PARENT, Gravity.TOP, 0, showSearchBar ? 42 : initialTopMargin, 0, 0));
     }
 
@@ -2271,4 +2269,14 @@ public class FilterTabsView extends FrameLayout {
             fireworksEffect = null;
         }
     }
+
+    private boolean isIosSearchPanelEnabled() {
+        return NaConfig.INSTANCE.getIosSearchPanel().Bool();
+    }
+
+    private boolean hasMultipleFolders() {
+        return MessagesController.getInstance(UserConfig.selectedAccount).getDialogFilters() != null
+                && MessagesController.getInstance(UserConfig.selectedAccount).getDialogFilters().size() > 1;
+    }
+
 }

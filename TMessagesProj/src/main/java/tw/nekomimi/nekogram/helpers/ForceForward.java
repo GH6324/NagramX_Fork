@@ -213,6 +213,7 @@ public class ForceForward {
                 null,
                 true,
                 0,
+                0,
                 parentFragment.getChatMode(),
                 false,
                 null,
@@ -239,6 +240,7 @@ public class ForceForward {
                 false,
                 null,
                 true,
+                0,
                 0,
                 parentFragment.getChatMode(),
                 false,
@@ -319,7 +321,7 @@ public class ForceForward {
                         ArrayList<TLRPC.MessageEntity> entities = mo.messageOwner != null && mo.messageOwner.entities != null && !mo.messageOwner.entities.isEmpty()
                                 ? mo.messageOwner.entities
                                 : org.telegram.messenger.MediaDataController.getInstance(currentAccount).getEntities(new CharSequence[]{text}, true);
-                        SendMessagesHelper.SendMessageParams params = SendMessagesHelper.SendMessageParams.of(text, targetDialogId, null, null, null, true, entities, null, null, true, 0, null, false);
+                        SendMessagesHelper.SendMessageParams params = SendMessagesHelper.SendMessageParams.of(text, targetDialogId, null, null, null, true, entities, null, null, true, 0, 0, null, false);
                         AndroidUtilities.runOnUIThread(() -> parentFragment.getSendMessagesHelper().sendMessage(params));
                     }
                     continue;
@@ -395,7 +397,7 @@ public class ForceForward {
 
                 if (mo.isSticker() || mo.isAnimatedSticker()) {
                     if (mo.getDocument() != null) {
-                        parentFragment.getSendMessagesHelper().sendSticker(mo.getDocument(), null, targetDialogId, null, null, null, null, null, true, 0, false, null, parentFragment.quickReplyShortcut, parentFragment.getQuickReplyId());
+                        parentFragment.getSendMessagesHelper().sendSticker(mo.getDocument(), null, targetDialogId, null, null, null, null, null, true, 0, 0, false, null, parentFragment.quickReplyShortcut, parentFragment.getQuickReplyId());
                     }
                     continue;
                 }
@@ -405,7 +407,7 @@ public class ForceForward {
                     ArrayList<TLRPC.MessageEntity> entities = mo.messageOwner.entities != null && !mo.messageOwner.entities.isEmpty()
                             ? mo.messageOwner.entities
                             : org.telegram.messenger.MediaDataController.getInstance(currentAccount).getEntities(new CharSequence[]{text}, true);
-                    SendMessagesHelper.SendMessageParams params = SendMessagesHelper.SendMessageParams.of(text, targetDialogId, null, null, null, true, entities, null, null, true, 0, null, false);
+                    SendMessagesHelper.SendMessageParams params = SendMessagesHelper.SendMessageParams.of(text, targetDialogId, null, null, null, true, entities, null, null, true, 0, 0, null, false);
                     AndroidUtilities.runOnUIThread(() -> parentFragment.getSendMessagesHelper().sendMessage(params));
                 }
             }
@@ -432,6 +434,7 @@ public class ForceForward {
                         false,
                         null,
                         true,
+                        0,
                         0,
                         parentFragment.getChatMode(),
                         false,
@@ -461,6 +464,7 @@ public class ForceForward {
                         false,
                         null,
                         true,
+                        0,
                         0,
                         parentFragment.getChatMode(),
                         false,

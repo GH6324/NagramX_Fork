@@ -84,7 +84,6 @@ public class NekoGeneralSettingsActivity extends BaseNekoXSettingsActivity {
     private boolean wasCentered = false;
     private boolean wasCenteredAtBeginning = false;
     private float centeredMeasure = -1;
-    private android.os.Parcelable recyclerViewState;
 
     private final CellGroup cellGroup = new CellGroup(this);
 
@@ -538,9 +537,9 @@ public class NekoGeneralSettingsActivity extends BaseNekoXSettingsActivity {
             } else if (key.equals(NaConfig.INSTANCE.getIconReplacements().getKey())) {
                 tooltip.showWithAction(0, UndoView.ACTION_NEED_RESTART, null, null);
             } else if (key.equals(NaConfig.INSTANCE.getSquareFloatingActionButton().getKey())) {
-                restartTooltip.showWithAction(0, UndoView.ACTION_NEED_RESTART, null, null);
+                tooltip.showWithAction(0, UndoView.ACTION_NEED_RESTART, null, null);
             } else if (key.equals(NekoConfig.usePersianCalendar.getKey())) {
-                restartTooltip.showWithAction(0, UndoView.ACTION_NEED_RESTART, null, null);
+                tooltip.showWithAction(0, UndoView.ACTION_NEED_RESTART, null, null);
             } else if (key.equals(NaConfig.INSTANCE.getIosSearchPanel().getKey())) {
                 tooltip.showWithAction(0, UndoView.ACTION_NEED_RESTART, null, null);
             } else if (key.equals(NekoConfig.dnsType.getKey())) {
