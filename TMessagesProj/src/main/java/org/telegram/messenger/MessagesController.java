@@ -2638,7 +2638,7 @@ public class MessagesController extends BaseController implements NotificationCe
         }
         getMessagesController().updateEmojiStatusUntilUpdate(dialogId, new_emoji_status);
         getNotificationCenter().postNotificationName(NotificationCenter.updateInterfaces, MessagesController.UPDATE_MASK_EMOJI_STATUS);
-        if (UserConfig.getInstance(currentAccount).isRealPremium()) getConnectionsManager().sendRequest(r, null);
+        if (UserConfig.getInstance(currentAccount).isPremium()) getConnectionsManager().sendRequest(r, null);
     }
 
     public void removeFilter(DialogFilter filter) {
@@ -10509,7 +10509,7 @@ public class MessagesController extends BaseController implements NotificationCe
                 TLRPC.TL_help_promoDataEmpty res = (TLRPC.TL_help_promoDataEmpty) response;
                 nextPromoInfoCheckTime = res.expires;
                 noDialog = true;
-            } else if (response instanceof TLRPC.TL_help_promoData res && (!res.proxy || !NekoConfig.hideProxySponsorChannel.Bool())) {
+            } else if (response instanceof TLRPC.TL_help_promoData res && !res.proxy) {
                 long did;
                 if (res.peer == null) {
                     did = 0;
@@ -10581,9 +10581,7 @@ public class MessagesController extends BaseController implements NotificationCe
                         getNotificationCenter().postNotificationName(NotificationCenter.newSuggestionsAvailable);
 
                         SharedPreferences.Editor editor1 = mainPreferences.edit();
-                        if (!NaConfig.INSTANCE.getDisableSuggestionView().Bool()) {
-                            editor1.putStringSet("pendingSuggestions", pendingSuggestions);
-                        }
+                        editor1.putStringSet("pendingSuggestions", pendingSuggestions);
                         editor1.putStringSet("dismissedSuggestions", dismissedSuggestions);
                         editor1.commit();
 
@@ -10809,6 +10807,20 @@ public class MessagesController extends BaseController implements NotificationCe
             for (HashMap.Entry<Integer, ArrayList<PrintingUser>> threadEntry : threads.entrySet()) {
                 Integer threadId = threadEntry.getKey();
                 ArrayList<PrintingUser> arr = threadEntry.getValue();
+                // ignoreBlocked start
+                if (NekoConfig.ignoreBlocked.Bool()) {
+                    ArrayList<PrintingUser> filteredArr = new ArrayList<>();
+                    for (PrintingUser pu : arr) {
+                        if (blockePeers.indexOfKey(pu.userId) < 0) {
+                            filteredArr.add(pu);
+                        }
+                    }
+                    arr = filteredArr;
+                }
+                if (arr.isEmpty()) {
+                    continue;
+                }
+                // ignoreBlocked end
 
                 LongSparseArray<CharSequence> newPrintingStrings = new LongSparseArray<>();
                 LongSparseArray<Integer> newPrintingStringsTypes = new LongSparseArray<>();
@@ -10821,12 +10833,6 @@ public class MessagesController extends BaseController implements NotificationCe
                     PrintingUser pu = arr.get(0);
                     TLRPC.User user = getUser(pu.userId);
                     if (user == null) {
-                        continue;
-                    }
-                    if (NekoConfig.ignoreBlocked.Bool() && getMessagesController().blockePeers.indexOfKey(user.id) >= 0) {
-                        continue;
-                    }
-                    if (AyuFilter.isBlockedChannel(user.id)) {
                         continue;
                     }
                     final boolean isGroup = key < 0 && !isEncryptedChat;

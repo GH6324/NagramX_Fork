@@ -99,6 +99,7 @@ import org.telegram.messenger.AnimationNotificationsLocker;
 import org.telegram.messenger.ApplicationLoader;
 import org.telegram.messenger.BirthdayController;
 import org.telegram.messenger.BotWebViewVibrationEffect;
+import org.telegram.messenger.BuildConfig;
 import org.telegram.messenger.BuildVars;
 import org.telegram.messenger.ChatObject;
 import org.telegram.messenger.ContactsController;
@@ -3237,9 +3238,6 @@ public class DialogsActivity extends BaseFragment implements NotificationCenter.
                         if (floatingButton2Container != null) {
                             floatingButton2Container.setVisibility(View.GONE);
                         }
-                        if (updateButton != null) {
-                            updateButton.setVisibility(View.GONE);
-                        }
                         if (storyHint != null) {
                             storyHint.hide();
                         }
@@ -3301,9 +3299,6 @@ public class DialogsActivity extends BaseFragment implements NotificationCenter.
                         floatingButtonContainer.setVisibility(NaConfig.INSTANCE.getDisableDialogsFloatingButton().Bool() ? View.GONE : View.VISIBLE);
                         if (floatingButton2Container != null) {
                             floatingButton2Container.setVisibility(!storiesEnabled || NaConfig.INSTANCE.getDisableDialogsFloatingButton().Bool() ? View.GONE : View.VISIBLE);
-                        }
-                        if (updateButton != null) {
-                            updateButton.setVisibility(View.VISIBLE);
                         }
                         floatingHidden = true;
                         floatingButtonTranslation = dp(100);
@@ -5330,7 +5325,8 @@ public class DialogsActivity extends BaseFragment implements NotificationCenter.
         if (searchString == null && initialDialogsType == DIALOGS_TYPE_DEFAULT) {
             updateButton = ApplicationLoader.applicationLoaderInstance.takeUpdateButton(context);
             if (updateButton != null) {
-                contentView.addView(updateButton, LayoutHelper.createFrame(LayoutHelper.MATCH_PARENT, 48, Gravity.LEFT | Gravity.BOTTOM));
+                int updateButtonBottomMargin = isSupportEdgeToEdge() ? AndroidUtilities.navigationBarHeight : 0;
+                contentView.addView(updateButton, LayoutHelper.createFrameMarginPx(LayoutHelper.MATCH_PARENT, 48, Gravity.LEFT | Gravity.BOTTOM, 0, 0, 0, updateButtonBottomMargin));
                 updateButton.onTranslationUpdate(ty -> {
                     additionalFloatingTranslation2 = dp(48) - ty;
                     if (additionalFloatingTranslation2 < 0) {
@@ -6146,7 +6142,7 @@ public class DialogsActivity extends BaseFragment implements NotificationCenter.
                 true
             );
             updateAuthHintCellVisibility(false);
-        } else if (folderId == 0 && getMessagesController().pendingSuggestions.contains("PREMIUM_GRACE") && !NekoConfig.disableTrending.Bool()) {
+        } else if (BuildConfig.DEBUG && folderId == 0 && getMessagesController().pendingSuggestions.contains("PREMIUM_GRACE")) {
             dialogsHintCellVisible = true;
             dialogsHintCell.setVisibility(View.VISIBLE);
             dialogsHintCell.setCompact(true);
@@ -6162,7 +6158,7 @@ public class DialogsActivity extends BaseFragment implements NotificationCenter.
                 updateDialogsHint();
             });
             updateAuthHintCellVisibility(false);
-        } else if (folderId == 0 && getMessagesController().customPendingSuggestion != null && !NekoConfig.disableTrending.Bool()) {
+        } else if (BuildConfig.DEBUG && folderId == 0 && getMessagesController().customPendingSuggestion != null) {
             final TLRPC.TL_pendingSuggestion suggestion = getMessagesController().customPendingSuggestion;
             dialogsHintCellVisible = true;
             dialogsHintCell.setVisibility(View.VISIBLE);
@@ -6190,7 +6186,7 @@ public class DialogsActivity extends BaseFragment implements NotificationCenter.
                 updateDialogsHint();
             });
             updateAuthHintCellVisibility(false);
-        } else if (isStarsSubscriptionHintVisible() && !NekoConfig.disableTrending.Bool()) {
+        } else if (BuildConfig.DEBUG && isStarsSubscriptionHintVisible()) {
             StarsController c = StarsController.getInstance(currentAccount);
             dialogsHintCellVisible = true;
             dialogsHintCell.setVisibility(View.VISIBLE);
@@ -6273,6 +6269,7 @@ public class DialogsActivity extends BaseFragment implements NotificationCenter.
             updateAuthHintCellVisibility(false);
             StarsController.getInstance(currentAccount).loadStarGifts();
         } else if (
+            BuildConfig.DEBUG &&
             folderId == 0 &&
             MessagesController.getInstance(currentAccount).pendingSuggestions.contains("BIRTHDAY_SETUP") &&
             getMessagesController().getUserFull(getUserConfig().getClientUserId()) != null &&
@@ -6856,7 +6853,7 @@ public class DialogsActivity extends BaseFragment implements NotificationCenter.
                 break;
             }
         }
-        boolean visible = !getUserConfig().isPremium() && !getMessagesController().premiumFeaturesBlocked() && visibleByDownload && visibleByPosition && DISPLAY_SPEEDOMETER_IN_DOWNLOADS_SEARCH;
+        boolean visible = BuildConfig.DEBUG && !getUserConfig().isPremium() && !getMessagesController().premiumFeaturesBlocked() && visibleByDownload && visibleByPosition && DISPLAY_SPEEDOMETER_IN_DOWNLOADS_SEARCH;
 
         boolean wasVisible = speedItem.getTag() != null;
         if (visible != wasVisible) {
@@ -8270,7 +8267,7 @@ public class DialogsActivity extends BaseFragment implements NotificationCenter.
                 if (loadFinal) {
                     int count = 100;
                     if (loadAll) {
-                        count = getUserConfig().isRealPremium() ? getMessagesController().dialogFiltersChatsLimitPremium : getMessagesController().dialogFiltersChatsLimitDefault;
+                        count = getUserConfig().isPremium() ? getMessagesController().dialogFiltersChatsLimitPremium : getMessagesController().dialogFiltersChatsLimitDefault;
                     }
                     getMessagesController().loadDialogs(folderId, -1, count, loadFromCacheFinal);
                 }
@@ -13996,7 +13993,7 @@ public class DialogsActivity extends BaseFragment implements NotificationCenter.
 
                 Bulletin.make(DialogsActivity.this, layout, duration).show();
                 try {
-                    fragmentView.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP, HapticFeedbackConstants.FLAG_IGNORE_GLOBAL_SETTING);
+                    if (!NekoConfig.disableVibration.Bool()) fragmentView.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP, HapticFeedbackConstants.FLAG_IGNORE_GLOBAL_SETTING);
                 } catch (Exception ignored) {}
 
             }, () -> getMessagesController().removeSuggestion(0, "SETUP_LOGIN_EMAIL"),

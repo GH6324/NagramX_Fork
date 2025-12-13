@@ -91,7 +91,7 @@ public class TranscribeHelper {
     public static boolean useTranscribeAI(int account) {
         int provider = NaConfig.INSTANCE.getTranscribeProvider().Int();
         return provider == TRANSCRIBE_WORKERSAI || provider == TRANSCRIBE_GEMINI || provider == TRANSCRIBE_OPENAI ||
-                (!UserConfig.getInstance(account).isRealPremium() && provider == TRANSCRIBE_AUTO);
+                (!UserConfig.getInstance(account).isPremium() && provider == TRANSCRIBE_AUTO);
     }
 
     public static void showErrorDialog(Exception e) {

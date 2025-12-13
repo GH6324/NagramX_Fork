@@ -57,7 +57,6 @@ public class UpdateHelper extends BaseRemoteHelper {
     
     @Override
     protected String getTag() {
-        // Use new beta version switch to determine update channel
         return NaConfig.INSTANCE.getEnableBetaVersion().Bool() ? "updateBeta" : "updateRelease";
     }
 

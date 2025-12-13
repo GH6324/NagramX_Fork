@@ -41,7 +41,6 @@
     <string name="SendAsEmoji">Invia come emoji</string>
     <string name="CustomArtworkApi">API Artwork Personalizzata</string>
     <string name="CustomEditedMessage">Icona Modificata Personalizzata</string>
-    <string name="DisableEmojiDrawLimit">Disabilita limite di disegno delle emoji</string>
     <string name="IconDecoration">Decorazioni Icona</string>
     <string name="NotificationIcon">Icona Notifiche</string>
     <string name="Official">Ufficiale</string>
@@ -58,9 +57,7 @@
     <string name="ChatDecoration">Decorazioni Chat</string>
     <string name="NeedChangeNekoSettings">Hai bisogno di cambiare le N-Config</string>
     <string name="DoNotUnarchiveBySwipe">Disabilita scorri per togliere dall\'archivio</string>
-    <string name="DoNotShareMyPhoneNumber">Non Condividere il mio Numero di Telefono</string>
     <string name="DefaultDeleteMenu">Menù di Eliminazione Predefinito</string>
-    <string name="DisableSuggestionView">Disabilita i Suggerimenti nelle Impostazioni</string>
     <string name="DisableStories">Disabilita le Storie</string>
     <string name="CopyPhotoAsSticker">Copia come Sticker</string>
     <string name="ProviderTranSmartTranslate">Traduttore TranSmart</string>
@@ -103,7 +100,6 @@
     <string name="ShowTimeHint">Tocca L\'orario per Dettagli</string>
     <string name="SearchHashtagDefaultPageChannel">Hashtag Default per la Ricerca nei Canali</string>
     <string name="SearchHashtagDefaultPageChat">Hashtag Default per la Ricerca nelle Chat</string>
-    <string name="LocaleToDBC">Testo locale utilizzando DBC Case</string>
     <string name="EnablePanguOnSending">Abilita Pangu All\'invio</string>
     <string name="PanguInfo">Spaziatura del testo \"paranoica\" per una buona leggibilità, per inserire automaticamente spazi vuoti tra caratteri CGC (cinese, giapponese, coreano), caratteri inglesi a mezza larghezza, cifre e simboli.</string>
     <string name="SendWithPangu">Invia con Pangu</string>

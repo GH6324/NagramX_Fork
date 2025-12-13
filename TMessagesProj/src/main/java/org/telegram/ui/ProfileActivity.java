@@ -4623,8 +4623,9 @@ public class ProfileActivity extends BaseFragment implements NotificationCenter.
                 builder.addTitle(message);
                 String finalMessage = message;
                 builder.addItem(getString(R.string.Copy), R.drawable.msg_copy_solar, (it) -> {
-                    AndroidUtilities.addToClipboard(finalMessage);
-                    AlertUtil.showToast(getString(R.string.TextCopied));
+                    if (AndroidUtilities.addToClipboard(finalMessage)) {
+                        BulletinFactory.of(ProfileActivity.this).createCopyLinkBulletin().show();
+                    }
                     return Unit.INSTANCE;
                 });
                 builder.addItem(BuildVars.LOGS_ENABLED ? getString(R.string.DebugMenuDisableLogs) : getString(R.string.DebugMenuEnableLogs), R.drawable.bug_solar, (it) -> {
@@ -17098,7 +17099,7 @@ public class ProfileActivity extends BaseFragment implements NotificationCenter.
 
     private void updateEditColorIcon() {
         if (getContext() == null || editColorItem == null) return;
-        if (getUserConfig().isPremium()) {
+        if (getUserConfig().isPremiumOrLocal()) {
             editColorItem.setIcon(R.drawable.menu_profile_colors);
         } else {
             Drawable icon = ContextCompat.getDrawable(getContext(), R.drawable.menu_profile_colors_locked);

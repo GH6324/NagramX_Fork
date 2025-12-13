@@ -138,10 +138,14 @@ import com.google.android.exoplayer2.ui.AspectRatioFrameLayout;
 import com.google.zxing.common.detector.MathUtils;
 import com.radolyn.ayugram.AyuConstants;
 import com.radolyn.ayugram.AyuUtils;
+import com.radolyn.ayugram.database.entities.AyuMessageBase;
+import com.radolyn.ayugram.database.entities.DeletedMessageFull;
 import com.radolyn.ayugram.messages.AyuMessagesController;
 import com.radolyn.ayugram.messages.AyuSavePreferences;
 import com.radolyn.ayugram.proprietary.AyuHistoryHook;
+import com.radolyn.ayugram.proprietary.AyuMessageUtils;
 import com.radolyn.ayugram.ui.AyuMessageHistory;
+import com.radolyn.ayugram.ui.AyuViewDeleted;
 import com.radolyn.ayugram.ui.DummyView;
 import com.radolyn.ayugram.utils.AyuGhostUtils;
 import com.radolyn.ayugram.utils.AyuState;
@@ -430,9 +434,9 @@ public class ChatActivity extends BaseFragment implements
     private final static int nkbtn_reply_private = 2033;
     private final static int nkbtn_translate_llm = 2034;
     private final static int nkbtn_forward_nocaption = 2035;
-    private final static int nkbtn_channelDirectMessage = 2036;
     private final static int nkbtn_translateVoice = 2037;
     private final static int nkbtn_clearDeleted = 2100;
+    private final static int nkbtn_viewDeleted = 2101;
 
     private final static int BOTTOM_TAG_MUTE = 200;
 
@@ -509,7 +513,6 @@ public class ChatActivity extends BaseFragment implements
     private ActionBarMenuItem.Item toTheBeginning;
     private ActionBarMenuItem.Item toTheMessage;
     private ActionBarMenuItem.Item hideTitleItem;
-    private ActionBarMenuItem.Item channelDmItem;
     private ClippingImageView animatingImageView;
     private ThanosEffect chatListThanosEffect;
     private ChatListViewPaddingsAnimator chatListViewPaddingsAnimator;
@@ -1285,6 +1288,7 @@ public class ChatActivity extends BaseFragment implements
 
     private final static int[] allowedNotificationsDuringChatListAnimations = new int[]{
             AyuConstants.MESSAGES_DELETED_NOTIFICATION,
+            AyuConstants.DELETED_MEDIA_LOADED_NOTIFICATION,
             NotificationCenter.messagesRead,
             NotificationCenter.threadMessagesRead,
             NotificationCenter.monoForumMessagesRead,
@@ -3081,6 +3085,7 @@ public class ChatActivity extends BaseFragment implements
         getNotificationCenter().addObserver(this, NotificationCenter.botForumDraftUpdate);
         getNotificationCenter().addObserver(this, NotificationCenter.botForumDraftDelete);
         getNotificationCenter().addObserver(this, AyuConstants.MESSAGES_DELETED_NOTIFICATION);
+        getNotificationCenter().addObserver(this, AyuConstants.DELETED_MEDIA_LOADED_NOTIFICATION);
 
         if (chatMode == MODE_EDIT_BUSINESS_LINK) {
             getNotificationCenter().addObserver(this, NotificationCenter.businessLinksUpdated);
@@ -3579,6 +3584,7 @@ public class ChatActivity extends BaseFragment implements
         getNotificationCenter().removeObserver(this, NotificationCenter.botForumDraftUpdate);
         getNotificationCenter().removeObserver(this, NotificationCenter.botForumDraftDelete);
         getNotificationCenter().removeObserver(this, AyuConstants.MESSAGES_DELETED_NOTIFICATION);
+        getNotificationCenter().removeObserver(this, AyuConstants.DELETED_MEDIA_LOADED_NOTIFICATION);
 
         if (chatMode == MODE_EDIT_BUSINESS_LINK) {
             getNotificationCenter().removeObserver(this, NotificationCenter.businessLinksUpdated);
@@ -4424,8 +4430,15 @@ public class ChatActivity extends BaseFragment implements
                         return true;
                     }
 
-                    getHeaderItem().performClick();
-                    return true;
+                    if (attachItem != null && attachItem.getView() != null && attachItem.getView().getVisibility() == VISIBLE) {
+                        attachItem.getView().performClick();
+                        return true;
+                    }
+
+                    if (headerItem != null) {
+                        headerItem.performClick();
+                        return true;
+                    }
                 }
 
                 return super.onAvatarClick();
@@ -4672,7 +4685,7 @@ public class ChatActivity extends BaseFragment implements
 
             if (currentChat != null) {
                 headerItem.lazilyAddSubItem(open_direct, R.drawable.msg_markunread, getString(R.string.ChannelOpenDirect));
-                headerItem.setSubItemShown(open_direct, ChatObject.isChannel(currentChat) && !ChatObject.isMonoForum(currentChat) && currentChat.linked_monoforum_id != 0 && ChatObject.canManageMonoForum(currentAccount, -currentChat.linked_monoforum_id));
+                headerItem.setSubItemShown(open_direct, ChatObject.isChannel(currentChat) && !ChatObject.isMonoForum(currentChat) && currentChat.linked_monoforum_id != 0 && (NaConfig.INSTANCE.getDisableChannelMuteButton().Bool() || ChatObject.canManageMonoForum(currentAccount, -currentChat.linked_monoforum_id)));
             }
             if (currentUser != null && chatMode != MODE_SAVED) {
                 headerItem.lazilyAddSubItem(call, R.drawable.msg_callback, LocaleController.getString(R.string.Call));
@@ -4715,10 +4728,6 @@ public class ChatActivity extends BaseFragment implements
             /*if (currentChat != null && !currentChat.creator && !ChatObject.hasAdminRights(currentChat)) {
                 headerItem.lazilyAddSubItem(report, R.drawable.msg_report, LocaleController.getString(R.string.ReportChat));
             }*/
-            if (currentChat != null && currentChat.linked_monoforum_id != 0) {
-                channelDmItem = headerItem.lazilyAddSubItem(nkbtn_channelDirectMessage, R.drawable.input_message, LocaleController.getString(R.string.PostSuggestions));
-                channelDmItem.setVisibility(View.GONE);
-            }
 
             if (currentChat != null && (currentChat.has_link || (chatInfo != null && chatInfo.linked_chat_id != 0))) {
                 String text;
@@ -4755,6 +4764,7 @@ public class ChatActivity extends BaseFragment implements
             if (NaConfig.INSTANCE.getChatMenuItemToBeginning().Bool()) headerItem.lazilyAddSubItem(to_the_beginning, R.drawable.ic_upward, getString(R.string.ToTheBeginning));
             if (NaConfig.INSTANCE.getChatMenuItemGoToMessage().Bool()) headerItem.lazilyAddSubItem(to_the_message, R.drawable.msg_go_up, getString(R.string.ToTheMessage));
             hideTitleItem = NaConfig.INSTANCE.getChatMenuItemHideTitle().Bool() ? headerItem.lazilyAddSubItem(nkheaderbtn_hide_title, R.drawable.hide_title, getString(R.string.HideTitle)) : null;
+            if (NaConfig.INSTANCE.getChatMenuItemViewDeleted().Bool() && NaConfig.INSTANCE.getEnableSaveDeletedMessages().Bool()) headerItem.lazilyAddSubItem(nkbtn_viewDeleted, R.drawable.msg_view_file, getString(R.string.ViewDeleted));
             if (NaConfig.INSTANCE.getChatMenuItemClearDeleted().Bool() && NaConfig.INSTANCE.getEnableSaveDeletedMessages().Bool()) headerItem.lazilyAddSubItem(nkbtn_clearDeleted, R.drawable.msg_clear, getString(R.string.ClearDeleted));
             if (!isTopic) {
                 if (NaConfig.INSTANCE.getChatMenuItemDeleteOwnMessages().Bool() && (ChatObject.isMegagroup(currentChat) || currentChat != null && !ChatObject.isChannel(currentChat))) {
@@ -8301,9 +8311,7 @@ public class ChatActivity extends BaseFragment implements
         });
         if (!noForwards) {
             actionsButtonsLayout.setReplyButtonOnLongClickListener(v -> {
-                if (!NekoConfig.disableVibration.Bool()) {
-                    v.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP, HapticFeedbackConstants.FLAG_IGNORE_GLOBAL_SETTING);
-                }
+                if (!NekoConfig.disableVibration.Bool()) v.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP, HapticFeedbackConstants.FLAG_IGNORE_GLOBAL_SETTING);
                 chatsHelper.makeReplyButtonLongClick(this, noForwards, getResourceProvider());
                 return false;
             });
@@ -15903,7 +15911,14 @@ public class ChatActivity extends BaseFragment implements
     }
 
     private Runnable sendSecretMessageRead(MessageObject messageObject, boolean readNow) {
+        return sendSecretMessageRead(messageObject, readNow, false);
+    }
+
+    private Runnable sendSecretMessageRead(MessageObject messageObject, boolean readNow, boolean force) {
         if (messageObject == null || messageObject.isOut() || !messageObject.isSecretMedia() || messageObject.messageOwner.destroyTime != 0 || messageObject.messageOwner.ttl <= 0) {
+            return null;
+        }
+        if (NaConfig.INSTANCE.getEnableSaveDeletedMessages().Bool() && !force) {
             return null;
         }
         if (readNow) {
@@ -15917,9 +15932,6 @@ public class ChatActivity extends BaseFragment implements
             }
             return null;
         } else {
-            if (NaConfig.INSTANCE.getEnableSaveDeletedMessages().Bool()) {
-                return null;
-            }
             return () -> {
                 final boolean delete = messageObject.messageOwner.ttl != 0x7FFFFFFF;
                 final int ttl = messageObject.messageOwner.ttl == 0x7FFFFFFF ? 0 : messageObject.messageOwner.ttl;
@@ -15935,10 +15947,14 @@ public class ChatActivity extends BaseFragment implements
     }
 
     private Runnable sendSecretMediaDelete(MessageObject messageObject) {
+        return sendSecretMediaDelete(messageObject, false);
+    }
+
+    private Runnable sendSecretMediaDelete(MessageObject messageObject, boolean force) {
         if (messageObject == null || messageObject.isOut() || !messageObject.isSecretMedia() || messageObject.messageOwner.ttl != 0x7FFFFFFF) {
             return null;
         }
-        if (NaConfig.INSTANCE.getEnableSaveDeletedMessages().Bool()) {
+        if (NaConfig.INSTANCE.getEnableSaveDeletedMessages().Bool() && !force) {
             return null;
         }
         final long taskId = getMessagesController().createDeleteShowOnceTask(dialog_id, messageObject.getId());
@@ -17521,6 +17537,7 @@ public class ChatActivity extends BaseFragment implements
         @Override
         public void drawBlurRect(Canvas canvas, float y, Rect rectTmp, Paint blurScrimPaint, boolean top) {
             int blurAlpha = Color.alpha(Theme.getColor(SharedConfig.getDevicePerformanceClass() == SharedConfig.PERFORMANCE_CLASS_HIGH ? Theme.key_chat_BlurAlpha : Theme.key_chat_BlurAlphaSlow, getResourceProvider()));
+            if (NekoConfig.forceBlurInChat.Bool()) blurAlpha = NekoConfig.chatBlueAlphaValue.Int();
             final BlurredBackgroundSource blurSource = glassBackgroundSourceFrostedRenderNode;
             if (blurSource != null && blurAlpha < 255) {
                 canvas.save();
@@ -21622,7 +21639,9 @@ public class ChatActivity extends BaseFragment implements
                         highlightTaskId = taskId;
                     }
                     if (showScrollToMessageError && messageId != startLoadFromMessageId) {
-                        BulletinFactory.of(this).createErrorBulletin(LocaleController.getString(R.string.MessageNotFound), themeDelegate).show();
+                        if (!AyuMessagesController.getInstance().isAyuDeletedMessageId(currentUserId, dialog_id, startLoadFromMessageId)) {
+                            BulletinFactory.of(this).createErrorBulletin(LocaleController.getString(R.string.MessageNotFound), themeDelegate).show();
+                        }
                     }
                     scrollToMessage = obj;
                     if (postponedScroll) {
@@ -22249,7 +22268,7 @@ public class ChatActivity extends BaseFragment implements
                 updateTopPanel(true);
             }
             if (headerItem != null) {
-                headerItem.setSubItemShown(open_direct, ChatObject.isChannel(currentChat) && !ChatObject.isMonoForum(currentChat) && currentChat.linked_monoforum_id != 0 && ChatObject.canManageMonoForum(currentAccount, -currentChat.linked_monoforum_id));
+                headerItem.setSubItemShown(open_direct, ChatObject.isChannel(currentChat) && !ChatObject.isMonoForum(currentChat) && currentChat.linked_monoforum_id != 0 && (NaConfig.INSTANCE.getDisableChannelMuteButton().Bool() || ChatObject.canManageMonoForum(currentAccount, -currentChat.linked_monoforum_id)));
             }
         } else if (id == NotificationCenter.didReceiveNewMessages) {
             FileLog.d("ChatActivity didReceiveNewMessages start");
@@ -23630,14 +23649,16 @@ public class ChatActivity extends BaseFragment implements
                     }
                 }
                 // AyuHistoryHook: fix replyMessage
-                for (int a = 0, N = messages.size(); a < N; a++) {
-                    MessageObject messageObject = messages.get(a);
-                    if (messageObject.getReplyMsgId() != 0 && (messageObject.replyMessageObject == null || messageObject.replyMessageObject.messageOwner instanceof TLRPC.TL_messageEmpty)) {
-                        int replyId = messageObject.getReplyMsgId();
-                        MessageObject replyMessage = loadedMessagesMap.get(replyId);
-                        if (replyMessage != null) {
-                            messageObject.replyMessageObject = replyMessage;
-                            addReplyMessageOwner(messageObject, 0);
+                if (NaConfig.INSTANCE.getEnableSaveDeletedMessages().Bool()) {
+                    for (int a = 0, N = messages.size(); a < N; a++) {
+                        MessageObject messageObject = messages.get(a);
+                        if (messageObject.getReplyMsgId() != 0 && (messageObject.replyMessageObject == null || messageObject.replyMessageObject.messageOwner instanceof TLRPC.TL_messageEmpty)) {
+                            int replyId = messageObject.getReplyMsgId();
+                            MessageObject replyMessage = loadedMessagesMap.get(replyId);
+                            if (replyMessage != null) {
+                                messageObject.replyMessageObject = replyMessage;
+                                addReplyMessageOwner(messageObject, 0);
+                            }
                         }
                     }
                 }
@@ -24734,6 +24755,15 @@ public class ChatActivity extends BaseFragment implements
             if (avatarContainer != null) {
                 avatarContainer.updateSubtitle(true);
             }
+        } else if (id == AyuConstants.DELETED_MEDIA_LOADED_NOTIFICATION) {
+            try {
+                Utilities.globalQueue.postRunnable(() -> {
+                    File file = (File) args[1];
+                    AyuMessageUtils.saveDownloadedMedia(file);
+                });
+            } catch (Exception e) {
+                FileLog.e(e);
+            }
         }
         // --- AyuGram hook (ayuDeleted)
         else if (id == AyuConstants.MESSAGES_DELETED_NOTIFICATION) {
@@ -25403,6 +25433,7 @@ public class ChatActivity extends BaseFragment implements
         boolean updateChat = false;
         boolean hasFromMe = false;
         boolean isAd = false;
+        boolean hasAyuDeleted = false;
 
         if (chatListItemAnimator != null) {
             chatListItemAnimator.setShouldAnimateEnterFromBottom(animatedFromBottom);
@@ -25585,7 +25616,17 @@ public class ChatActivity extends BaseFragment implements
         if (justCreatedTopic) {
             forwardEndReached[0] = true;
         }
-        if (!forwardEndReached[0]) {
+        // AyuHistoryHook
+        if (NaConfig.INSTANCE.getEnableSaveDeletedMessages().Bool()) {
+            for (int i = 0, N = arr.size(); i < N; i++) {
+                MessageObject m = arr.get(i);
+                if (m != null && m.messageOwner != null && m.messageOwner.ayuDeleted) {
+                    hasAyuDeleted = true;
+                    break;
+                }
+            }
+        }
+        if (!forwardEndReached[0] && !hasAyuDeleted) {
             int currentMaxDate = Integer.MIN_VALUE;
 
             for (int a = 0; a < arr.size(); a++) {
@@ -27691,8 +27732,9 @@ public class ChatActivity extends BaseFragment implements
     }
 
     // hide bottom start
+    private boolean cachedIsGestureNavigation;
     private boolean isGesture() {
-        return AndroidUtil.isGestureNavigation(getContext());
+        return cachedIsGestureNavigation;
     }
 
     private boolean shouldHideBottomFor3ButtonNav() {
@@ -28126,9 +28168,6 @@ public class ChatActivity extends BaseFragment implements
             chatInputViewsContainer.getFadeView().invalidate();
         }
 
-        if (channelDmItem != null) {
-            channelDmItem.setVisibility(showSuggestButton);
-        }
         checkRaiseSensors();
     }
 
@@ -29631,7 +29670,7 @@ public class ChatActivity extends BaseFragment implements
                 }
                 addToContactsButton.setTag(null);
                 addToContactsButton.setVisibility(View.VISIBLE);
-            } else if (showShare && !user.self && !NaConfig.INSTANCE.getDoNotShareMyPhoneNumber().Bool()) {
+            } else if (showShare && !user.self) {
                 createTopPanel();
                 if (topChatPanelView == null) {
                     return;
@@ -30252,6 +30291,7 @@ public class ChatActivity extends BaseFragment implements
     @Override
     public void onResume() {
         super.onResume();
+        cachedIsGestureNavigation = AndroidUtil.isGestureNavigation(getContext());
         checkShowBlur(false);
         activityResumeTime = System.currentTimeMillis();
         if (openImport && getSendMessagesHelper().getImportingHistory(dialog_id) != null) {
@@ -31071,7 +31111,8 @@ public class ChatActivity extends BaseFragment implements
             }
             bottomViewsVisibilityController.setViewVisible(MESSAGE_ACTION_CONTAINER, false, true);
             actionBar.hideActionMode();
-            updateBottomOverlay();
+            // Delay updateBottomOverlay to ensure action mode state is properly updated after forward
+            AndroidUtilities.runOnUIThread(() -> updateBottomOverlay(), 50);
         }
         cantDeleteMessagesCount = 0;
         canEditMessagesCount = 0;
@@ -31277,12 +31318,7 @@ public class ChatActivity extends BaseFragment implements
             groupedMessages = null;
         }
 
-        // --- AyuGram hack
-        boolean isAyuDeleted =
-                message != null &&
-                message.messageOwner != null &&
-                message.messageOwner.ayuDeleted;
-        // --- AyuGram hack
+        boolean isAyuDeleted = message != null && message.messageOwner != null && message.messageOwner.ayuDeleted;
 
         boolean allowChatActions = true;
         boolean allowPin;
@@ -31344,16 +31380,6 @@ public class ChatActivity extends BaseFragment implements
         if (currentChat != null && (!ChatObject.canSendMessages(currentChat))) {
             allowChatActions = false;
         }
-
-        // --- AyuGram hack
-        if (isAyuDeleted) {
-            allowChatActions = false;
-            allowPin = false;
-            allowUnpin = false;
-            allowEdit = false;
-            noforwards = true;
-        }
-        // --- AyuGram hack
 
         if (single || type < 2 || type == 20) {
             if (getParentActivity() == null) {
@@ -31460,36 +31486,50 @@ public class ChatActivity extends BaseFragment implements
                 icons.add(R.drawable.msg_calendar2);
             }
 
-            // --- AyuGram menu
-            if (
-                NaConfig.INSTANCE.getEnableSaveEditsHistory().Bool()
-                && message != null
-                && message.messageOwner.from_id != null
-                && message.messageOwner.from_id.user_id != getAccountInstance().getUserConfig().getClientUserId()
-                && AyuMessagesController.getInstance().hasAnyRevisions(getAccountInstance().getUserConfig().getClientUserId(), dialog_id, message.messageOwner.id)
+            // AyuMoments menu start
+            if (NaConfig.INSTANCE.getEnableSaveEditsHistory().Bool()
+                    && message.messageOwner.from_id != null
+                    && message.messageOwner.from_id.user_id != getAccountInstance().getUserConfig().getClientUserId()
+                    && !(AyuMessageUtils.isExpiredDocument(message) && (message.messageOwner.media.voice || message.messageOwner.media.round))
+                    && AyuMessagesController.getInstance().hasAnyRevisions(getAccountInstance().getUserConfig().getClientUserId(), dialog_id, message.messageOwner.id)
             ) {
-                var idx = options.size() - 1;
-                items.add(idx, LocaleController.getString(R.string.EditsHistoryMenuText));
+                int idx = options.size() - 1;
+                items.add(idx, getString(R.string.EditsHistoryMenuText));
                 options.add(idx, AyuConstants.OPTION_HISTORY);
                 icons.add(idx, R.drawable.msg_log);
             }
 
-            if (message != null && !isAyuDeleted ) {
-                if (message.messageOwner.ttl > 0) {
-                    items.add(getString(R.string.BurnTtlMessage));
-                    options.add(AyuConstants.OPTION_TTL);
-                    icons.add(R.drawable.burn_solar);
+            if (!isAyuDeleted) {
+                if (message.messageOwner.ttl > 0 || message.isVoiceOnce() || message.isRoundOnce()) {
+                    boolean isExpiredVideo = AyuMessageUtils.isExpiredDocument(message);
+                    boolean isExpiredPhoto = AyuMessageUtils.isExpiredPhoto(message);
+                    if (!isExpiredPhoto && message.isPhoto()) {
+                        items.add(0, getString(R.string.SaveToGallery));
+                        options.add(0, AyuConstants.OPTION_TTL_SAVE);
+                        icons.add(0, R.drawable.msg_gallery);
+                    } else if (message.isVideo() || message.isRoundOnce() || message.isVoiceOnce()) {
+                        items.add(0, getString(R.string.SaveToDownloads));
+                        options.add(0, AyuConstants.OPTION_TTL_SAVE);
+                        icons.add(0, R.drawable.msg_download);
+                    }
+                    if (!isExpiredVideo && !isExpiredPhoto) {
+                        int idx = options.size() - 1;
+                        items.add(idx, getString(R.string.BurnTtlMessage));
+                        options.add(idx, AyuConstants.OPTION_TTL);
+                        icons.add(idx, R.drawable.burn_solar);
+                    }
                 }
                 if (!NekoConfig.sendReadMessagePackets.Bool()
                         && message.messageOwner.from_id != null
                         && message.messageOwner.from_id.user_id != getAccountInstance().getUserConfig().getClientUserId()
                 ) {
-                    items.add(getString(R.string.GhostReadMessage));
-                    options.add(AyuConstants.OPTION_READ_MESSAGE);
-                    icons.add(R.drawable.msg_view_file);
+                    int idx = options.size() - 1;
+                    items.add(idx, getString(R.string.GhostReadMessage));
+                    options.add(idx, AyuConstants.OPTION_READ_MESSAGE);
+                    icons.add(idx, R.drawable.msg_view_file);
                 }
             }
-            // --- AyuGram menu
+            // AyuMoments menu end
 
             if (options.isEmpty() && optionsView == null) {
                 return false;
@@ -32226,9 +32266,114 @@ public class ChatActivity extends BaseFragment implements
                         }
                         processSelectedOption(options.get(i));
                     });
-                    if (option == OPTION_TRANSLATE) {
-                        // NekoX: Official Translation Move to neko_btn_translate
-                    }
+                    /*if (option == OPTION_TRANSLATE) {
+                        final boolean translateEnabled = getMessagesController().getTranslateController().isContextTranslateEnabled();
+                        String toLangDefault = LocaleController.getInstance().getCurrentLocale().getLanguage();
+                        String toLang = TranslateAlert2.getToLanguage();
+                        int[] messageIdToTranslate = new int[] { message.getId() };
+                        final CharSequence finalMessageText = message.getMessageTextToTranslate(groupedMessages, messageIdToTranslate);
+                        Utilities.CallbackReturn<URLSpan, Boolean> onLinkPress = (link) -> {
+                            didPressMessageUrl(link, false, selectedObject, v instanceof ChatMessageCell ? (ChatMessageCell) v : null);
+                            return true;
+                        };
+                        TLRPC.InputPeer inputPeer = selectedObject != null && (selectedObject.isPoll() || selectedObject.isVoiceTranscriptionOpen() || selectedObject.isSponsored() || selectedObject.scheduled || chatMode == MODE_QUICK_REPLIES) ? null : getMessagesController().getInputPeer(dialog_id);
+                        if (selectedObject != null && selectedObject.messageOwner != null && selectedObject.messageOwner.originalLanguage != null) {
+                            waitForLangDetection.set(false);
+                            String fromLang = selectedObject.messageOwner.originalLanguage;
+                            cell.setVisibility(
+                                fromLang != null && (!fromLang.equals(toLang) || !fromLang.equals(toLangDefault) || fromLang.equals(TranslateController.UNKNOWN_LANGUAGE)) && (
+                                    translateEnabled && !RestrictedLanguagesSelectActivity.getRestrictedLanguages().contains(fromLang) ||
+                                    (currentChat != null && (currentChat.has_link || ChatObject.isPublic(currentChat)) || selectedObject.messageOwner.fwd_from != null) && ("uk".equals(fromLang) || "ru".equals(fromLang))
+                                ) ? View.VISIBLE : View.GONE
+                            );
+                            cell.setOnClickListener(e -> {
+                                if (selectedObject == null || i >= options.size() || getParentActivity() == null) {
+                                    return;
+                                }
+                                String toLangValue = fromLang != null && fromLang.equals(toLang) ? toLangDefault : toLang;
+                                ArrayList<TLRPC.MessageEntity> entities = selectedObject != null && selectedObject.messageOwner != null ? selectedObject.messageOwner.entities : null;
+                                TranslateAlert2 alert = TranslateAlert2.showAlert(getParentActivity(), this, currentAccount, inputPeer, messageIdToTranslate[0], fromLang, toLangValue, finalMessageText, entities, noforwardsOrPaidMedia, onLinkPress, () -> dimBehindView(false));
+                                alert.setDimBehind(false);
+                                closeMenu(false);
+
+                                int hintCount = MessagesController.getNotificationsSettings(currentAccount).getInt("dialog_show_translate_count" + getDialogId(), 5);
+                                if (hintCount > 0) {
+                                    hintCount--;
+                                    MessagesController.getNotificationsSettings(currentAccount).edit().putInt("dialog_show_translate_count" + getDialogId(), hintCount).apply();
+                                    updateTopPanel(true);
+                                }
+                            });
+                        } else if (LanguageDetector.hasSupport()) {
+                            final String[] fromLang = {null};
+                            cell.setVisibility(View.GONE);
+                            waitForLangDetection.set(true);
+                            LanguageDetector.detectLanguage(
+                                finalMessageText.toString(),
+                                (String lang) -> {
+                                    fromLang[0] = lang;
+                                    if (fromLang[0] != null && (!fromLang[0].equals(toLang) || !fromLang[0].equals(toLangDefault) || fromLang[0].equals(TranslateController.UNKNOWN_LANGUAGE)) && (
+                                        translateEnabled && !RestrictedLanguagesSelectActivity.getRestrictedLanguages().contains(fromLang[0]) ||
+                                        (currentChat != null && (currentChat.has_link || ChatObject.isPublic(currentChat)) || selectedObject.messageOwner.fwd_from != null) && ("uk".equals(fromLang[0]) || "ru".equals(fromLang[0]))
+                                    )) {
+                                        cell.setVisibility(View.VISIBLE);
+                                    }
+                                    waitForLangDetection.set(false);
+                                    if (onLangDetectionDone.get() != null) {
+                                        onLangDetectionDone.get().run();
+                                        onLangDetectionDone.set(null);
+                                    }
+                                },
+                                (Exception e) -> {
+                                    FileLog.e("mlkit: failed to detect language in message");
+                                    waitForLangDetection.set(false);
+                                    if (onLangDetectionDone.get() != null) {
+                                        onLangDetectionDone.get().run();
+                                        onLangDetectionDone.set(null);
+                                    }
+                                }
+                            );
+                            cell.setOnClickListener(e -> {
+                                if (selectedObject == null || i >= options.size() || getParentActivity() == null) {
+                                    return;
+                                }
+                                String toLangValue = fromLang[0] != null && fromLang[0].equals(toLang) ? toLangDefault : toLang;
+                                ArrayList<TLRPC.MessageEntity> entities = selectedObject != null && selectedObject.messageOwner != null ? selectedObject.messageOwner.entities : null;
+                                TranslateAlert2 alert = TranslateAlert2.showAlert(getParentActivity(), this, currentAccount, inputPeer, messageIdToTranslate[0], fromLang[0], toLangValue, finalMessageText, entities, noforwardsOrPaidMedia, onLinkPress, () -> dimBehindView(false));
+                                alert.setDimBehind(false);
+                                closeMenu(false);
+
+                                int hintCount = MessagesController.getNotificationsSettings(currentAccount).getInt("dialog_show_translate_count" + getDialogId(), 5);
+                                if (hintCount > 0) {
+                                    hintCount--;
+                                    MessagesController.getNotificationsSettings(currentAccount).edit().putInt("dialog_show_translate_count" + getDialogId(), hintCount).apply();
+                                    updateTopPanel(true);
+                                }
+                            });
+                            cell.postDelayed(() -> {
+                                if (onLangDetectionDone.get() != null) {
+                                    onLangDetectionDone.getAndSet(null).run();
+                                }
+                            }, 250);
+                        } else if (translateEnabled) {
+                            cell.setOnClickListener(e -> {
+                                if (selectedObject == null || i >= options.size() || getParentActivity() == null) {
+                                    return;
+                                }
+                                TranslateAlert2 alert = TranslateAlert2.showAlert(getParentActivity(), this, currentAccount, inputPeer, messageIdToTranslate[0], "und", toLang, finalMessageText, null, noforwardsOrPaidMedia, onLinkPress, () -> dimBehindView(false));
+                                alert.setDimBehind(false);
+                                closeMenu(false);
+
+                                int hintCount = MessagesController.getNotificationsSettings(currentAccount).getInt("dialog_show_translate_count" + getDialogId(), 5);
+                                if (hintCount > 0) {
+                                    hintCount--;
+                                    MessagesController.getNotificationsSettings(currentAccount).edit().putInt("dialog_show_translate_count" + getDialogId(), hintCount).apply();
+                                    updateTopPanel(true);
+                                }
+                            });
+                        } else {
+                            cell.setVisibility(View.GONE);
+                        }
+                    }*/
                     cell.setOnLongClickListener(v1 -> {
                         if (selectedObject == null || i < 0 || i >= options.size()) {
                             return false;
@@ -32374,7 +32519,7 @@ public class ChatActivity extends BaseFragment implements
                         sheet.show();
                     }));
                 }
-                if (isReactionsAvailable && (!tags || (!getMessagesController().premiumFeaturesBlocked() && (getUserConfig().isRealPremium())))) {
+                if (isReactionsAvailable && (!tags || (!getMessagesController().premiumFeaturesBlocked() && (getUserConfig().isPremium())))) {
                     int pad = 22;
                     int sPad = 24;
                     reactionsLayout.setPadding(dp(4) + (LocaleController.isRTL ? 0 : sPad), dp(4), dp(4) + (LocaleController.isRTL ? sPad : 0), dp(pad));
@@ -33531,8 +33676,119 @@ public class ChatActivity extends BaseFragment implements
                 if (selectedObject.messageOwner.ttl == 0x7FFFFFFF) {
                     selectedObject.messageOwner.ttl = 1;
                 }
-                sendSecretMessageRead(selectedObject, true);
+                sendSecretMessageRead(selectedObject, true, true);
+
+                var prefs = new AyuSavePreferences(selectedObject.messageOwner, currentAccount);
+                prefs.setDialogId(selectedObject.getDialogId());
+                AyuMessagesController.getInstance().onMessageDeleted(prefs);
+
+                Utilities.globalQueue.postRunnable(() -> sendSecretMediaDelete(selectedObject, true), 1000);
                 BotWebViewVibrationEffect.SELECTION_CHANGE.vibrate();
+                break;
+            case AyuConstants.OPTION_TTL_SAVE:
+                if ((Build.VERSION.SDK_INT <= 28 || BuildVars.NO_SCOPED_STORAGE) && getParentActivity().checkSelfPermission(Manifest.permission.WRITE_EXTERNAL_STORAGE) != PackageManager.PERMISSION_GRANTED) {
+                    getParentActivity().requestPermissions(new String[]{Manifest.permission.WRITE_EXTERNAL_STORAGE}, 4);
+                    selectedObject = null;
+                    selectedObjectGroup = null;
+                    selectedObjectToEditCaption = null;
+                    return;
+                }
+                final MessageObject ttlMessage = selectedObject;
+                Utilities.globalQueue.postRunnable(() -> {
+                    File fileToSave = null;
+                    TLRPC.Document document = ttlMessage.getDocument();
+                    // save voiceOnce and roundOnce, see SecretVoicePlayer.setCell
+                    if (ttlMessage.isVoiceOnce() || ttlMessage.isRoundOnce()) {
+                        if (document != null) {
+                            fileToSave = FileLoader.getInstance(currentAccount).getPathToAttach(document);
+                            if (fileToSave != null && !fileToSave.exists()) {
+                                fileToSave = new File(fileToSave.getPath() + ".enc");
+                            }
+                            if (fileToSave == null || !fileToSave.exists()) {
+                                fileToSave = FileLoader.getInstance(currentAccount).getPathToMessage(ttlMessage.messageOwner);
+                                if (fileToSave != null && !fileToSave.exists()) {
+                                    fileToSave = new File(fileToSave.getPath() + ".enc");
+                                }
+                            }
+                            if ((fileToSave == null || !fileToSave.exists()) && ttlMessage.messageOwner.attachPath != null) {
+                                fileToSave = new File(ttlMessage.messageOwner.attachPath);
+                            }
+                            if (fileToSave != null && fileToSave.exists() && fileToSave.getName().endsWith(".enc")) {
+                                File decryptedFile = AyuMessageUtils.decryptAndSaveMedia(fileToSave.getName().replace(".enc", ""), fileToSave, ttlMessage);
+                                if (decryptedFile != null && decryptedFile.exists() && decryptedFile.length() > 0) {
+                                    fileToSave = decryptedFile;
+                                }
+                            }
+                            if (fileToSave != null && fileToSave.exists()) {
+                                MediaController.saveFile(fileToSave.getAbsolutePath(), getParentActivity(), 2, null, null);
+                                AndroidUtilities.runOnUIThread(() -> {
+                                    if (getParentActivity() != null) {
+                                        BulletinFactory.FileType fileType = BulletinFactory.FileType.VIDEO_TO_DOWNLOADS;
+                                        BulletinFactory.of(ChatActivity.this).createDownloadBulletin(fileType, themeDelegate).show();
+                                    }
+                                });
+                            } else {
+                                AndroidUtilities.runOnUIThread(() -> {
+                                    if (getParentActivity() != null) {
+                                        BulletinFactory.of(ChatActivity.this).createErrorBulletin(getString(R.string.UnsupportedAttachment), themeDelegate).show();
+                                    }
+                                });
+                            }
+                        }
+                        return;
+                    }
+                    // TTL media with encryption, see SecretMediaViewer.openMedia
+                    if (document != null) {
+                        if (ttlMessage.messageOwner.attachPath != null) {
+                            fileToSave = new File(ttlMessage.messageOwner.attachPath);
+                            if (!fileToSave.exists()) {
+                                fileToSave = null;
+                            }
+                        }
+                        if (fileToSave == null) {
+                            fileToSave = FileLoader.getInstance(currentAccount).getPathToMessage(ttlMessage.messageOwner);
+                            File encryptedFile = new File(fileToSave.getAbsolutePath() + ".enc");
+                            if (encryptedFile.exists()) {
+                                File decryptedFile = AyuMessageUtils.decryptAndSaveMedia(fileToSave.getName(), encryptedFile, ttlMessage);
+                                if (decryptedFile != null && decryptedFile.exists() && decryptedFile.length() > 0) {
+                                    fileToSave = decryptedFile;
+                                }
+                            }
+                        }
+                    } else {
+                        TLRPC.PhotoSize sizeFull = FileLoader.getClosestPhotoSizeWithSize(ttlMessage.photoThumbs, AndroidUtilities.getPhotoSize());
+                        if (sizeFull != null) {
+                            fileToSave = FileLoader.getInstance(currentAccount).getPathToAttach(sizeFull, true);
+                            if (fileToSave == null || !fileToSave.exists()) {
+                                File encryptedPhotoFile = new File(fileToSave.getAbsolutePath() + ".enc");
+                                if (encryptedPhotoFile.exists()) {
+                                    File decryptedFile = AyuMessageUtils.decryptAndSaveMedia(fileToSave.getName(), encryptedPhotoFile, ttlMessage);
+                                    if (decryptedFile != null && decryptedFile.exists() && decryptedFile.length() > 0) {
+                                        fileToSave = decryptedFile;
+                                    } else {
+                                        fileToSave = null;
+                                    }
+                                } else {
+                                    fileToSave = null;
+                                }
+                            }
+                        }
+                    }
+                    if (fileToSave != null && fileToSave.exists()) {
+                        MediaController.saveFile(fileToSave.getAbsolutePath(), getParentActivity(), ttlMessage.isVideo() ? 2 : 0, null, null);
+                        AndroidUtilities.runOnUIThread(() -> {
+                            if (getParentActivity() != null) {
+                                BulletinFactory.of(ChatActivity.this).createDownloadBulletin(ttlMessage.isVideo() ? BulletinFactory.FileType.VIDEO_TO_DOWNLOADS : BulletinFactory.FileType.PHOTO, themeDelegate).show();
+                            }
+                        });
+                    } else {
+                        AndroidUtilities.runOnUIThread(() -> {
+                            if (getParentActivity() != null) {
+                                BulletinFactory.of(ChatActivity.this).createErrorBulletin(getString(R.string.UnsupportedAttachment), themeDelegate).show();
+                            }
+                        });
+                    }
+                });
                 break;
             case AyuConstants.OPTION_READ_MESSAGE:
                 AyuGhostUtils.markReadOnServer(selectedObject.messageOwner.id, getMessagesController().getInputPeer(selectedObject.messageOwner.peer_id), false);
@@ -44245,16 +44501,8 @@ public class ChatActivity extends BaseFragment implements
             if (button != null) {
                 button.setTextColor(Theme.getColor(Theme.key_dialogTextRed));
             }
-        } else if (id == nkbtn_channelDirectMessage) {
-            MessagesController.getGlobalMainSettings().edit().putInt("channelsuggesthint", 3).apply();
-            if (currentChat != null && currentChat.linked_monoforum_id != 0) {
-                getMessagesController().putMonoForumLinkedChat(currentChat.id, currentChat.linked_monoforum_id);
-                Bundle bundle = new Bundle();
-                bundle.putLong("chat_id", currentChat.linked_monoforum_id);
-                bundle.putInt("chatMode", MODE_SUGGESTIONS);
-                bundle.putBoolean("isSubscriberSuggestions", true);
-                presentFragment(new ChatActivity(bundle));
-            }
+        } else if (id == nkbtn_viewDeleted) {
+            presentFragment(new AyuViewDeleted(dialog_id));
         } else if (id == nkheaderbtn_upgrade) {
             AlertDialog.Builder builder = new AlertDialog.Builder(getParentActivity());
             builder.setMessage(LocaleController.getString("ConvertGroupAlert", R.string.ConvertGroupAlert));
@@ -46563,11 +46811,13 @@ public class ChatActivity extends BaseFragment implements
                         icons.add(R.drawable.menu_recent);
                     }
                     MessageObject messageObject = getMessageForTranslate();
+                    MessageObject captionObject = null;
                     boolean docsWithMessages = false;
                     if (selectedObjectGroup != null && selectedObjectGroup.isDocuments) {
                         for (MessageObject object : selectedObjectGroup.messages) {
                             if (!TextUtils.isEmpty(object.messageOwner.message)) {
                                 docsWithMessages = true;
+                                captionObject = object;
                             }
                         }
                     }
@@ -46575,9 +46825,20 @@ public class ChatActivity extends BaseFragment implements
                     boolean showTranslateLLM = NaConfig.INSTANCE.getShowTranslateMessageLLM().Bool() && NaConfig.INSTANCE.isLLMTranslatorAvailableInMenu() && !NaConfig.INSTANCE.llmIsDefaultProvider();
                     boolean isTranslatableMessage = !selectedObject.isAnimatedEmoji() && !selectedObject.isDice() && (messageObject != null || docsWithMessages);
                     if ((showTranslate || showTranslateLLM) && isTranslatableMessage) {
+                        String fromLang = null;
+                        if (messageObject != null && messageObject.messageOwner.originalLanguage != null) {
+                            fromLang = messageObject.messageOwner.originalLanguage;
+                        } else if (captionObject != null && captionObject.messageOwner.originalLanguage != null) {
+                            fromLang = captionObject.messageOwner.originalLanguage;
+                        }
+                        // check if language is restricted but don't detect language here to avoid extra delay
+                        if (fromLang != null && RestrictedLanguagesSelectActivity.getRestrictedLanguages().contains(fromLang)) {
+                            showTranslate = false;
+                            showTranslateLLM = false;
+                        }
                         boolean isLLMDefault = NaConfig.INSTANCE.llmIsDefaultProvider();
                         boolean isOutgoingOrNotTranslatingDialog = selectedObject.isOutOwner() || !isTranslatingDialog(selectedObject);
-                        boolean isTranslated = messageObject != null ? (messageObject.messageOwner.translated || messageObject.translated) : selectedObjectGroup.messages.get(0).messageOwner.translated;
+                        boolean isTranslated = messageObject != null ? (messageObject.messageOwner.translated || messageObject.translated) : (captionObject != null && captionObject.messageOwner.translated);
                         boolean canUndoTranslate = isTranslated && isOutgoingOrNotTranslatingDialog;
                         if (showTranslate && (isOutgoingOrNotTranslatingDialog || isLLMDefault)) {
                             items.add(canUndoTranslate ? getString(R.string.UndoTranslate) : getString(R.string.Translate));
@@ -46793,11 +47054,13 @@ public class ChatActivity extends BaseFragment implements
                     }
                 }
                 MessageObject messageObject = getMessageForTranslate();
+                MessageObject captionObject = null;
                 boolean docsWithMessages = false;
                 if (selectedObjectGroup != null && selectedObjectGroup.isDocuments) {
                     for (MessageObject object : selectedObjectGroup.messages) {
                         if (!TextUtils.isEmpty(object.messageOwner.message)) {
                             docsWithMessages = true;
+                            captionObject = object;
                         }
                     }
                 }
@@ -46806,19 +47069,24 @@ public class ChatActivity extends BaseFragment implements
                 boolean isTranslatingDialog = isTranslatingDialog(selectedObject);
                 if ((showTranslate || showTranslateLLM) && (selectedObject.isOutOwner() || !isTranslatingDialog)) {
                     if (messageObject != null || docsWithMessages) {
-                        boolean td;
-                        if (messageObject != null) {
-                            td = messageObject.messageOwner.translated || messageObject.translated;
-                        } else {
-                            td = selectedObjectGroup.messages.get(0).messageOwner.translated;
+                        String fromLang = null;
+                        if (messageObject != null && messageObject.messageOwner.originalLanguage != null) {
+                            fromLang = messageObject.messageOwner.originalLanguage;
+                        } else if (captionObject != null && captionObject.messageOwner.originalLanguage != null) {
+                            fromLang = captionObject.messageOwner.originalLanguage;
                         }
+                        if (fromLang != null && RestrictedLanguagesSelectActivity.getRestrictedLanguages().contains(fromLang)) {
+                            showTranslate = false;
+                            showTranslateLLM = false;
+                        }
+                        boolean isTranslated = messageObject != null ? (messageObject.messageOwner.translated || messageObject.translated) : (captionObject != null && captionObject.messageOwner.translated);
                         if (showTranslate) {
-                            items.add(td ? LocaleController.getString(R.string.UndoTranslate) : LocaleController.getString(R.string.Translate));
+                            items.add(isTranslated ? LocaleController.getString(R.string.UndoTranslate) : LocaleController.getString(R.string.Translate));
                             options.add(nkbtn_translate);
                             icons.add(NaConfig.INSTANCE.llmIsDefaultProvider() ? R.drawable.magic_stick_solar : R.drawable.msg_translate);
                         }
-                        if (showTranslateLLM && (!showTranslate || !td)) {
-                            items.add(td ? LocaleController.getString(R.string.UndoTranslate) : LocaleController.getString(R.string.TranslateMessageLLM));
+                        if (showTranslateLLM && (!showTranslate || !isTranslated)) {
+                            items.add(isTranslated ? LocaleController.getString(R.string.UndoTranslate) : LocaleController.getString(R.string.TranslateMessageLLM));
                             options.add(nkbtn_translate_llm);
                             icons.add(R.drawable.magic_stick_solar);
                         }
@@ -47309,9 +47577,9 @@ public class ChatActivity extends BaseFragment implements
                 returnToMessageId = 0;
                 returnToMessageIdsStack.clear();
                 onPageDownClicked();
-                try {
-                    if (!NekoConfig.disableVibration.Bool()) view.performHapticFeedback(HapticFeedbackConstants.LONG_PRESS, HapticFeedbackConstants.FLAG_IGNORE_GLOBAL_SETTING);
-                } catch (Exception ignored) {}
+                if (NekoConfig.disableVibration.Bool()) {
+                    AndroidUtil.disableHapticFeedback(view);
+                }
                 return true;
             }
         }

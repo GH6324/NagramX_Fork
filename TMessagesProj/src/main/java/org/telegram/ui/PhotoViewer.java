@@ -331,6 +331,7 @@ import tw.nekomimi.nekogram.utils.AlertUtil;
 import tw.nekomimi.nekogram.utils.ProxyUtil;
 import xyz.nextalone.nagram.NaConfig;
 import tw.nekomimi.nekogram.helpers.MessageHelper;
+import tw.nekomimi.nekogram.streaming.MediaStreamingProvider;
 
 @SuppressLint("WrongConstant")
 @SuppressWarnings("unchecked")
@@ -5530,11 +5531,15 @@ public class PhotoViewer implements NotificationCenter.NotificationCenterDelegat
                         } else if (currentMessageObject != null) {
                             if (AndroidUtilities.openForView(currentMessageObject, parentActivity, resourcesProvider, currentMessageObject.isVideo() || currentMessageObject.isPhoto() || currentMessageObject.isSticker())) {
                                 closePhoto(false, false);
+                            } else if (currentMessageObject.isVideo() && MediaStreamingProvider.openForStreaming(parentActivity, currentAccount, currentMessageObject.getDocument(), currentMessageObject)) {
+                                closePhoto(false, false);
                             } else {
                                 showDownloadAlert();
                             }
                         } else if (pageBlocksAdapter != null) {
                             if (AndroidUtilities.openForView(pageBlocksAdapter.getMedia(currentIndex), parentActivity)) {
+                                closePhoto(false, false);
+                            } else if (pageBlocksAdapter.isVideo(currentIndex) && MediaStreamingProvider.openForStreaming(parentActivity, currentAccount, (TLRPC.Document) pageBlocksAdapter.getMedia(currentIndex), pageBlocksAdapter.getParentObject())) {
                                 closePhoto(false, false);
                             } else {
                                 showDownloadAlert();
@@ -14979,7 +14984,7 @@ public class PhotoViewer implements NotificationCenter.NotificationCenterDelegat
                 galleryButton.setVisibility(View.VISIBLE);
                 galleryGap.setVisibility(View.VISIBLE);
             }
-            if (!noforwardsOverrided && avatar.video_sizes.isEmpty()) {
+            if (!noforwardsOverrided && avatar != null && avatar.video_sizes.isEmpty()) {
                 menuItem.showSubItem(gallery_menu_copy);
                 menuItem.showSubItem(gallery_menu_set_photo);
             } else {
