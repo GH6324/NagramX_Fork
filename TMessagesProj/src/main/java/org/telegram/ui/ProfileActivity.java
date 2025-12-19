@@ -26,6 +26,9 @@ import static org.telegram.ui.bots.AffiliateProgramFragment.percents;
 import static tw.nekomimi.nekogram.DatacenterActivity.getDCLocation;
 import static tw.nekomimi.nekogram.DatacenterActivity.getDCName;
 
+import tw.nekomimi.nekogram.helpers.AppVersionHelper;
+
+
 import android.Manifest;
 import android.animation.Animator;
 import android.animation.AnimatorListenerAdapter;
@@ -13804,54 +13807,7 @@ public class ProfileActivity extends BaseFragment implements NotificationCenter.
                     cell.getTextView().setMovementMethod(null);
                     cell.setBackground(Theme.getThemedDrawable(mContext, R.drawable.greydivider_bottom, Theme.key_windowBackgroundGrayShadow));
 
-                    String arch;
-                    try {
-                        boolean isUniversal = false;
-                        try {
-                            String sourceDir = getContext().getApplicationInfo().sourceDir;
-                            if (sourceDir != null) {
-                                java.util.zip.ZipFile zipFile = new java.util.zip.ZipFile(sourceDir);
-                                boolean hasArm64 = false;
-                                boolean hasArm32 = false;
-
-                                java.util.Enumeration<? extends java.util.zip.ZipEntry> entries = zipFile.entries();
-                                while (entries.hasMoreElements()) {
-                                    java.util.zip.ZipEntry entry = entries.nextElement();
-                                    String name = entry.getName();
-                                    if (name.startsWith("lib/arm64-v8a/")) {
-                                        hasArm64 = true;
-                                    } else if (name.startsWith("lib/armeabi-v7a/")) {
-                                        hasArm32 = true;
-                                    }
-                                }
-                                zipFile.close();
-
-                                isUniversal = hasArm64 && hasArm32;
-                            }
-                        } catch (Exception e) {
-                        }
-
-                        if (isUniversal) {
-                            arch = "universal";
-                        } else {
-                            String nativeLibraryDir = getContext().getApplicationInfo().nativeLibraryDir;
-                            if (nativeLibraryDir != null) {
-                                if (nativeLibraryDir.contains("arm64")) {
-                                    arch = "arm64-v8a";
-                                } else if (nativeLibraryDir.contains("arm")) {
-                                    arch = "armeabi-v7a";
-                                } else {
-                                    arch = Build.SUPPORTED_ABIS[0].toLowerCase(Locale.ROOT);
-                                }
-                            } else {
-                                arch = Build.SUPPORTED_ABIS[0].toLowerCase(Locale.ROOT);
-                            }
-                        }
-                    } catch (Exception e) {
-                        arch = Build.SUPPORTED_ABIS[0].toLowerCase(Locale.ROOT);
-                    }
-
-                    cell.setText("Nagram X v" + BuildConfig.VERSION_NAME + "(" + BuildConfig.VERSION_CODE + ") " + arch + " " + BuildConfig.BUILD_TYPE);
+                    cell.setText(AppVersionHelper.getVersionString(getContext()));
 
                     cell.getTextView().setPadding(0, AndroidUtilities.dp(14), 0, AndroidUtilities.dp(14));
                     view = cell;
