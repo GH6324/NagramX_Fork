@@ -55,6 +55,12 @@ import java.util.LinkedList;
 
 public class ChatHistorySearchActivity extends BaseFragment {
 
+    // SharedPreferences constants
+    private static final String PREF_RECENT_SEARCH = "chat_recent_search";
+    private static final String KEY_COUNT = "count";
+    private static final String KEY_RECENT_PREFIX = "recent";
+    private static final int MAX_RECENT_SEARCHES = 20;
+
     private RecyclerListView listView;
     private ListAdapter adapter;
     private ArrayList<ChatHistoryActivity.HistoryItem> results = new ArrayList<>();
@@ -229,6 +235,12 @@ public class ChatHistorySearchActivity extends BaseFragment {
 
     private void performSearch(String query) {
         results.clear();
+        
+        // Invalidate grouping cache when search changes
+        if (adapter != null) {
+            adapter.invalidateGroupingCache();
+        }
+        
         ArrayList<ChatHistoryActivity.HistoryItem> source = ChatHistoryActivity.loadRecentHistoryItems(currentAccount);
         if (TextUtils.isEmpty(query)) {
             adapter.notifyDataSetChanged();
@@ -268,21 +280,23 @@ public class ChatHistorySearchActivity extends BaseFragment {
     }
 
     private void loadRecentSearch() {
-        android.content.SharedPreferences preferences = org.telegram.messenger.ApplicationLoader.applicationContext.getSharedPreferences("chat_recent_search", android.app.Activity.MODE_PRIVATE);
-        int count = preferences.getInt("count", 0);
+        android.content.SharedPreferences preferences = org.telegram.messenger.ApplicationLoader
+            .applicationContext.getSharedPreferences(PREF_RECENT_SEARCH, android.app.Activity.MODE_PRIVATE);
+        int count = preferences.getInt(KEY_COUNT, 0);
         for (int a = 0; a < count; a++) {
-            String str = preferences.getString("recent" + a, null);
+            String str = preferences.getString(KEY_RECENT_PREFIX + a, null);
             if (str == null) break;
             recentSearches.add(str);
         }
     }
 
     private void saveRecentSearch() {
-        android.content.SharedPreferences.Editor editor = org.telegram.messenger.ApplicationLoader.applicationContext.getSharedPreferences("chat_recent_search", android.app.Activity.MODE_PRIVATE).edit();
+        android.content.SharedPreferences.Editor editor = org.telegram.messenger.ApplicationLoader
+            .applicationContext.getSharedPreferences(PREF_RECENT_SEARCH, android.app.Activity.MODE_PRIVATE).edit();
         editor.clear();
-        editor.putInt("count", recentSearches.size());
+        editor.putInt(KEY_COUNT, recentSearches.size());
         for (int a = 0, N = recentSearches.size(); a < N; a++) {
-            editor.putString("recent" + a, recentSearches.get(a));
+            editor.putString(KEY_RECENT_PREFIX + a, recentSearches.get(a));
         }
         editor.apply();
     }
@@ -296,7 +310,7 @@ public class ChatHistorySearchActivity extends BaseFragment {
             }
         }
         recentSearches.add(0, query);
-        while (recentSearches.size() > 20) {
+        while (recentSearches.size() > MAX_RECENT_SEARCHES) {
             recentSearches.remove(recentSearches.size() - 1);
         }
         saveRecentSearch();

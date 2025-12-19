@@ -82,9 +82,15 @@ import java.util.LinkedList;
 import tw.nekomimi.nekogram.BackButtonMenuRecent;
 import java.util.HashSet;
 
-public class ChatHistoryActivity extends BaseFragment implements NotificationCenter.NotificationCenterDelegate {
+public class ChatHistoryActivity extends BaseFragment {
 
-    private static final String NAX = "ChatHistoryActivity";
+    private static final String TAG = "ChatHistoryActivity";
+
+    // Official Telegram user IDs that should be filtered
+    private static final long TELEGRAM_SERVICE_USER_ID = 777000L;
+    private static final long REPLIES_BOT_USER_ID = 708513L;
+    private static final long STICKERS_BOT_USER_ID = 429000L;
+    private static final long BOTFATHER_USER_ID = 136817688L;
 
     // Chat categories
     public enum ChatCategory {
@@ -113,7 +119,7 @@ public class ChatHistoryActivity extends BaseFragment implements NotificationCen
     private SparseIntArray savedFirstVisibleByTab = new SparseIntArray();
     private SparseIntArray savedTopOffsetByTab = new SparseIntArray();
     private SparseArray<Parcelable> savedLayoutStateByTab = new SparseArray<>();
-    private HashSet<Long> requestedReloadUserIds = new HashSet<>();
+
 
     // Search
     private boolean isSearchMode = false;
@@ -136,7 +142,6 @@ public class ChatHistoryActivity extends BaseFragment implements NotificationCen
     @Override
     public boolean onFragmentCreate() {
         super.onFragmentCreate();
-        NotificationCenter.getInstance(currentAccount).addObserver(this, NotificationCenter.updateInterfaces);
         loadHistoryItems();
         return true;
     }
@@ -144,7 +149,6 @@ public class ChatHistoryActivity extends BaseFragment implements NotificationCen
     @Override
     public void onFragmentDestroy() {
         super.onFragmentDestroy();
-        NotificationCenter.getInstance(currentAccount).removeObserver(this, NotificationCenter.updateInterfaces);
         saveState();
     }
 
@@ -167,14 +171,14 @@ public class ChatHistoryActivity extends BaseFragment implements NotificationCen
             savedCurrentTab = viewPager.getCurrentPosition();
         }
         
-        if (BuildVars.LOGS_ENABLED) Log.d(NAX, "Save state: searchMode=" + savedSearchMode + ", query=" + savedSearchQuery + ", currentTab=" + savedCurrentTab);
+        if (BuildVars.LOGS_ENABLED) Log.d(TAG, "Save state: searchMode=" + savedSearchMode + ", query=" + savedSearchQuery + ", currentTab=" + savedCurrentTab);
     }
 
     /**
      * Restore previously saved state (search state and current tab)
      */
     private void restoreState() {
-        if (BuildVars.LOGS_ENABLED) Log.d(NAX, "Start restoring state: searchMode=" + savedSearchMode + ", query=" + savedSearchQuery + ", currentTab=" + savedCurrentTab);
+        if (BuildVars.LOGS_ENABLED) Log.d(TAG, "Start restoring state: searchMode=" + savedSearchMode + ", query=" + savedSearchQuery + ", currentTab=" + savedCurrentTab);
         
         // Restore current tab first
         if (viewPager != null && savedCurrentTab >= 0 && savedCurrentTab < ChatCategory.values().length) {
@@ -183,7 +187,7 @@ public class ChatHistoryActivity extends BaseFragment implements NotificationCen
             if (tabsView != null) {
                 tabsView.selectTabWithId(savedCurrentTab, 1.0f, false);
             }
-            if (BuildVars.LOGS_ENABLED) Log.d(NAX, "Tab restored to position: " + savedCurrentTab);
+            if (BuildVars.LOGS_ENABLED) Log.d(TAG, "Tab restored to position: " + savedCurrentTab);
         }
         
         // Restore search state
@@ -197,7 +201,7 @@ public class ChatHistoryActivity extends BaseFragment implements NotificationCen
             // Restore search field state
             if (searchItem != null) {
                 searchItem.postDelayed(() -> {
-                    searchItem.openSearch(false); // No animation
+                    searchItem.openSearch(false);
                     if (searchItem.getSearchField() != null) {
                         searchItem.getSearchField().setText(savedSearchQuery);
                     }
@@ -206,7 +210,7 @@ public class ChatHistoryActivity extends BaseFragment implements NotificationCen
             
             // Execute search
             performSearch(savedSearchQuery);
-            if (BuildVars.LOGS_ENABLED) Log.d(NAX, "Search state restored");
+            if (BuildVars.LOGS_ENABLED) Log.d(TAG, "Search state restored");
         }
     }
 
@@ -385,8 +389,8 @@ public class ChatHistoryActivity extends BaseFragment implements NotificationCen
         // Filter out official Telegram chats (Saved Messages, Replies, etc.)
         if (item.user != null) {
             // Skip official Telegram users (like Replies bot, Saved Messages)
-            if (item.user.id == 777000 || // Telegram service notifications
-                item.user.id == 708513 ||  // Replies bot
+            if (item.user.id == TELEGRAM_SERVICE_USER_ID || 
+                item.user.id == REPLIES_BOT_USER_ID ||  
                 item.user.id == UserConfig.getInstance(currentAccount).getClientUserId()) { // Self
                 return false;
             }
@@ -417,83 +421,19 @@ public class ChatHistoryActivity extends BaseFragment implements NotificationCen
     private void loadHistoryItems() {
         allHistoryItems.clear();
 
-        try {
-            // Get recent dialogs from BackButtonMenuRecent
-            java.lang.reflect.Method getRecentDialogsMethod = BackButtonMenuRecent.class.getDeclaredMethod("getRecentDialogs", int.class);
-            getRecentDialogsMethod.setAccessible(true);
+        // Get recent dialogs directly from BackButtonMenuRecent (no reflection needed)
+        LinkedList<Long> recentDialogIds = BackButtonMenuRecent.getRecentDialogs(currentAccount);
 
-            @SuppressWarnings("unchecked")
-            LinkedList<Long> recentDialogIds = (LinkedList<Long>) getRecentDialogsMethod.invoke(null, currentAccount);
+        for (Long dialogId : recentDialogIds) {
+            // Skip official/system dialogs
+            if (isOfficialDialog(dialogId, currentAccount)) {
+                continue;
+            }
 
-            for (Long dialogId : recentDialogIds) {
-                // Skip official/system dialogs
-                if (isOfficialDialog(dialogId, currentAccount)) {
-                    continue;
-                }
-
-                HistoryItem item = new HistoryItem();
-                item.dialogId = dialogId;
-
-                if (dialogId > 0) {
-                    // User dialog
-                    item.user = MessagesController.getInstance(currentAccount).getUser(dialogId);
-                    // If user is null, try to load it from database
-                    if (item.user == null) {
-                        try {
-                            java.util.ArrayList<Long> userIds = new java.util.ArrayList<>();
-                            userIds.add(dialogId);
-                            java.util.ArrayList<TLRPC.User> users = MessagesStorage.getInstance(currentAccount).getUsers(userIds);
-                            if (!users.isEmpty()) {
-                                item.user = users.get(0);
-                                // Put it in memory cache for future use
-                                MessagesController.getInstance(currentAccount).putUser(item.user, true);
-                            }
-                        } catch (Exception ex) {
-                            ex.printStackTrace();
-                        }
-                    }
-
-                    // Skip if user is still null (couldn't load from database either)
-                    if (item.user == null) {
-                        continue;
-                    }
-                    String uname = UserObject.getPublicUsername(item.user);
-                    if (TextUtils.isEmpty(uname)) {
-                        if (!requestedReloadUserIds.contains(item.user.id)) {
-                            requestedReloadUserIds.add(item.user.id);
-                            MessagesController.getInstance(currentAccount).reloadUser(item.user.id);
-                        }
-                    }
-                } else {
-                    // Chat dialog
-                    long chatId = -dialogId;
-                    item.chat = MessagesController.getInstance(currentAccount).getChat(chatId);
-                    // If chat is null, try to load it from database
-                    if (item.chat == null) {
-                        try {
-                            java.util.ArrayList<Long> chatIds = new java.util.ArrayList<>();
-                            chatIds.add(chatId);
-                            java.util.ArrayList<TLRPC.Chat> chats = MessagesStorage.getInstance(currentAccount).getChats(chatIds);
-                            if (!chats.isEmpty()) {
-                                item.chat = chats.get(0);
-                                // Put it in memory cache for future use
-                                MessagesController.getInstance(currentAccount).putChat(item.chat, true);
-                            }
-                        } catch (Exception ex) {
-                            ex.printStackTrace();
-                        }
-                    }
-
-                    // Skip if chat is still null (couldn't load from database either)
-                    if (item.chat == null) {
-                        continue;
-                    }
-                }
-
+            HistoryItem item = createHistoryItem(dialogId, currentAccount);
+            if (item != null) {
                 allHistoryItems.add(item);
             }
-        } catch (Exception e) {
-            e.printStackTrace();
         }
 
         // Initialize filtered data
@@ -508,17 +448,86 @@ public class ChatHistoryActivity extends BaseFragment implements NotificationCen
         updateTabs();
     }
 
-    @Override
-    public void didReceivedNotification(int id, int account, Object... args) {
-        if (id == NotificationCenter.updateInterfaces) {
-            int mask = (Integer) args[0];
-            if ((mask & MessagesController.UPDATE_MASK_NAME) != 0) {
-                saveCurrentListPosition();
-                loadHistoryItems();
-                refreshAllPages();
+    /**
+     * Creates a HistoryItem from a dialog ID, loading user/chat data from cache or database
+     * @param dialogId The dialog ID
+     * @param account The account number
+     * @return HistoryItem or null if the user/chat could not be loaded
+     */
+    private static HistoryItem createHistoryItem(long dialogId, int account) {
+        HistoryItem item = new HistoryItem();
+        item.dialogId = dialogId;
+
+        if (dialogId > 0) {
+            // User dialog
+            item.user = MessagesController.getInstance(account).getUser(dialogId);
+            // If user is null, try to load it from database
+            if (item.user == null) {
+                item.user = loadUserFromDatabase(dialogId, account);
+            }
+            // Skip if user is still null
+            if (item.user == null) {
+                return null;
+            }
+        } else {
+            // Chat dialog
+            long chatId = -dialogId;
+            item.chat = MessagesController.getInstance(account).getChat(chatId);
+            // If chat is null, try to load it from database
+            if (item.chat == null) {
+                item.chat = loadChatFromDatabase(chatId, account);
+            }
+            // Skip if chat is still null
+            if (item.chat == null) {
+                return null;
             }
         }
+        return item;
     }
+
+    /**
+     * Load user from database and cache it
+     */
+    private static TLRPC.User loadUserFromDatabase(long userId, int account) {
+        try {
+            ArrayList<Long> userIds = new ArrayList<>();
+            userIds.add(userId);
+            ArrayList<TLRPC.User> users = MessagesStorage.getInstance(account).getUsers(userIds);
+            if (!users.isEmpty()) {
+                TLRPC.User user = users.get(0);
+                MessagesController.getInstance(account).putUser(user, true);
+                return user;
+            }
+        } catch (Exception e) {
+            if (BuildVars.LOGS_ENABLED) {
+                Log.e(TAG, "Failed to load user from database: " + userId, e);
+            }
+        }
+        return null;
+    }
+
+    /**
+     * Load chat from database and cache it
+     */
+    private static TLRPC.Chat loadChatFromDatabase(long chatId, int account) {
+        try {
+            ArrayList<Long> chatIds = new ArrayList<>();
+            chatIds.add(chatId);
+            ArrayList<TLRPC.Chat> chats = MessagesStorage.getInstance(account).getChats(chatIds);
+            if (!chats.isEmpty()) {
+                TLRPC.Chat chat = chats.get(0);
+                MessagesController.getInstance(account).putChat(chat, true);
+                return chat;
+            }
+        } catch (Exception e) {
+            if (BuildVars.LOGS_ENABLED) {
+                Log.e(TAG, "Failed to load chat from database: " + chatId, e);
+            }
+        }
+        return null;
+    }
+
+
 
     public static boolean isOfficialDialog(long dialogId, int account) {
         if (dialogId > 0) {
@@ -535,9 +544,9 @@ public class ChatHistoryActivity extends BaseFragment implements NotificationCen
             }
 
             // Filter specific official user IDs
-            if (dialogId == 777000 || // Telegram service notifications
-                dialogId == 429000 || // Stickers bot
-                dialogId == 136817688) { // @BotFather
+            if (dialogId == TELEGRAM_SERVICE_USER_ID || 
+                dialogId == STICKERS_BOT_USER_ID || 
+                dialogId == BOTFATHER_USER_ID) { 
                 return true;
             }
         }
@@ -754,13 +763,8 @@ public class ChatHistoryActivity extends BaseFragment implements NotificationCen
     }
 
     private void clearHistory() {
-        try {
-            java.lang.reflect.Method clearRecentDialogsMethod = BackButtonMenuRecent.class.getDeclaredMethod("clearRecentDialogs", int.class);
-            clearRecentDialogsMethod.setAccessible(true);
-            clearRecentDialogsMethod.invoke(null, currentAccount);
-        } catch (Exception e) {
-            e.printStackTrace();
-        }
+        // Clear recent dialogs directly (no reflection needed)
+        BackButtonMenuRecent.clearRecentDialogs(currentAccount);
 
         // Clear saved state
         clearSavedState();
@@ -787,23 +791,23 @@ public class ChatHistoryActivity extends BaseFragment implements NotificationCen
     public void onResume() {
         super.onResume();
         
-        if (BuildVars.LOGS_ENABLED) Log.d(NAX, "onResume: isOpeningChat=" + isOpeningChat + ", hasBeenInitialized=" + hasBeenInitialized + ", savedSearchMode=" + savedSearchMode);
+        if (BuildVars.LOGS_ENABLED) Log.d(TAG, "onResume: isOpeningChat=" + isOpeningChat + ", hasBeenInitialized=" + hasBeenInitialized + ", savedSearchMode=" + savedSearchMode);
         
         // If returning from chat page
         if (isOpeningChat && hasBeenInitialized) {
-            if (BuildVars.LOGS_ENABLED) Log.d(NAX, "Returning from chat");
+            if (BuildVars.LOGS_ENABLED) Log.d(TAG, "Returning from chat");
             isOpeningChat = false; // Reset flag
             
             // If user was in search mode, restore search state without refreshing
             if (savedSearchMode && !android.text.TextUtils.isEmpty(savedSearchQuery)) {
-                if (BuildVars.LOGS_ENABLED) Log.d(NAX, "Restoring search state, no list refresh");
+                if (BuildVars.LOGS_ENABLED) Log.d(TAG, "Restoring search state, no list refresh");
                 restoreState();
                 return; // Don't refresh list, keep search results
             }
             
             // If search mode was opened with empty query, exit search mode on return and close search UI
             if (isSearchMode && android.text.TextUtils.isEmpty(searchQuery)) {
-                if (BuildVars.LOGS_ENABLED) Log.d(NAX, "Exiting empty search mode on return");
+                if (BuildVars.LOGS_ENABLED) Log.d(TAG, "Exiting empty search mode on return");
                 try {
                     if (actionBar != null && actionBar.isSearchFieldVisible()) {
                         actionBar.closeSearchField(false);
@@ -822,7 +826,7 @@ public class ChatHistoryActivity extends BaseFragment implements NotificationCen
         isOpeningChat = false;
         
         if (hasBeenInitialized) {
-            if (BuildVars.LOGS_ENABLED) Log.d(NAX, "General resume, keep list state");
+            if (BuildVars.LOGS_ENABLED) Log.d(TAG, "General resume, keep list state");
         }
     }
 
@@ -1013,7 +1017,7 @@ public class ChatHistoryActivity extends BaseFragment implements NotificationCen
 
             // Ensure we're working with the latest data
             if (sourceItems == null || sourceItems.isEmpty()) {
-                if (BuildVars.LOGS_ENABLED) Log.d(NAX, "No data available for " + category.name() + " category");
+                if (BuildVars.LOGS_ENABLED) Log.d(TAG, "No data available for " + category.name() + " category");
                 return;
             }
 
@@ -1023,7 +1027,7 @@ public class ChatHistoryActivity extends BaseFragment implements NotificationCen
                 }
             }
 
-            if (BuildVars.LOGS_ENABLED) Log.d(NAX, "Updated " + category.name() + " category: " + categoryItems.size() + " items from " + sourceItems.size() + " total" + (isSearchMode ? " (search mode)" : ""));
+            if (BuildVars.LOGS_ENABLED) Log.d(TAG, "Updated " + category.name() + " category: " + categoryItems.size() + " items from " + sourceItems.size() + " total" + (isSearchMode ? " (search mode)" : ""));
         }
 
         public void onItemClick(View view, int position) {
@@ -1204,50 +1208,19 @@ public class ChatHistoryActivity extends BaseFragment implements NotificationCen
 
     public static ArrayList<HistoryItem> loadRecentHistoryItems(int account) {
         ArrayList<HistoryItem> items = new ArrayList<>();
-        try {
-            java.lang.reflect.Method getRecentDialogsMethod = BackButtonMenuRecent.class.getDeclaredMethod("getRecentDialogs", int.class);
-            getRecentDialogsMethod.setAccessible(true);
-            @SuppressWarnings("unchecked")
-            LinkedList<Long> recentDialogIds = (LinkedList<Long>) getRecentDialogsMethod.invoke(null, account);
-            for (Long dialogId : recentDialogIds) {
-                if (isOfficialDialog(dialogId, account)) {
-                    continue;
-                }
-                HistoryItem item = new HistoryItem();
-                item.dialogId = dialogId;
-                if (dialogId > 0) {
-                    item.user = MessagesController.getInstance(account).getUser(dialogId);
-                    if (item.user == null) {
-                        try {
-                            java.util.ArrayList<Long> userIds = new java.util.ArrayList<>();
-                            userIds.add(dialogId);
-                            java.util.ArrayList<TLRPC.User> users = MessagesStorage.getInstance(account).getUsers(userIds);
-                            if (!users.isEmpty()) {
-                                item.user = users.get(0);
-                                MessagesController.getInstance(account).putUser(item.user, true);
-                            }
-                        } catch (Exception ignore) {}
-                    }
-                    if (item.user == null) continue;
-                } else {
-                    long chatId = -dialogId;
-                    item.chat = MessagesController.getInstance(account).getChat(chatId);
-                    if (item.chat == null) {
-                        try {
-                            java.util.ArrayList<Long> chatIds = new java.util.ArrayList<>();
-                            chatIds.add(chatId);
-                            java.util.ArrayList<TLRPC.Chat> chats = MessagesStorage.getInstance(account).getChats(chatIds);
-                            if (!chats.isEmpty()) {
-                                item.chat = chats.get(0);
-                                MessagesController.getInstance(account).putChat(item.chat, true);
-                            }
-                        } catch (Exception ignore) {}
-                    }
-                    if (item.chat == null) continue;
-                }
+        
+        // Get recent dialogs directly (no reflection needed)
+        LinkedList<Long> recentDialogIds = BackButtonMenuRecent.getRecentDialogs(account);
+        
+        for (Long dialogId : recentDialogIds) {
+            if (isOfficialDialog(dialogId, account)) {
+                continue;
+            }
+            HistoryItem item = createHistoryItem(dialogId, account);
+            if (item != null) {
                 items.add(item);
             }
-        } catch (Exception ignore) {}
+        }
         return items;
     }
 
@@ -1451,36 +1424,21 @@ public class ChatHistoryActivity extends BaseFragment implements NotificationCen
     }
 
     private void deleteChatFromHistory(HistoryItem item) {
-        try {
-            // Get recent dialogs using reflection
-            java.lang.reflect.Method getRecentDialogsMethod = BackButtonMenuRecent.class.getDeclaredMethod("getRecentDialogs", int.class);
-            getRecentDialogsMethod.setAccessible(true);
+        // Get recent dialogs directly (no reflection needed)
+        LinkedList<Long> recentDialogIds = BackButtonMenuRecent.getRecentDialogs(currentAccount);
 
-            @SuppressWarnings("unchecked")
-            LinkedList<Long> recentDialogIds = (LinkedList<Long>) getRecentDialogsMethod.invoke(null, currentAccount);
+        // Remove the dialog from the list
+        recentDialogIds.remove(item.dialogId);
 
-            // Remove the dialog from the list
-            recentDialogIds.remove(item.dialogId);
+        // Save the updated list directly (no reflection needed)
+        BackButtonMenuRecent.saveRecentDialogs(currentAccount, recentDialogIds);
 
-            // Save the updated list using reflection
-            java.lang.reflect.Method saveRecentDialogsMethod = BackButtonMenuRecent.class.getDeclaredMethod("saveRecentDialogs", int.class, LinkedList.class);
-            saveRecentDialogsMethod.setAccessible(true);
-            saveRecentDialogsMethod.invoke(null, currentAccount, recentDialogIds);
+        // Refresh the interface
+        loadHistoryItems();
+        refreshAllPages();
 
-            // Refresh the interface
-            loadHistoryItems();
-            refreshAllPages();
-
-            BulletinFactory.of(this).createSimpleBulletin(R.raw.ic_delete,
-                getString(R.string.ChatRemovedFromRecent)).show();
-        } catch (Exception e) {
-            e.printStackTrace();
-            // Fallback: manually remove from local list and refresh
-            allHistoryItems.removeIf(historyItem -> historyItem.dialogId == item.dialogId);
-            refreshAllPages();
-            BulletinFactory.of(this).createSimpleBulletin(R.raw.ic_delete,
-                getString(R.string.ChatRemovedFromRecent)).show();
-        }
+        BulletinFactory.of(this).createSimpleBulletin(R.raw.ic_delete,
+            getString(R.string.ChatRemovedFromRecent)).show();
     }
 
 

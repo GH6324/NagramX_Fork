@@ -3,16 +3,13 @@ package tw.nekomimi.nekogram.settings;
 import static org.telegram.messenger.LocaleController.getString;
 import static org.telegram.ui.ProfileActivity.sendLogs;
 
-import android.app.Activity;
 import android.content.Context;
 import android.content.SharedPreferences;
-import android.os.Build;
 import android.text.SpannableStringBuilder;
 import android.text.Spanned;
 import android.text.style.ForegroundColorSpan;
 import android.view.View;
 import android.view.ViewGroup;
-import android.widget.Toast;
 
 import androidx.annotation.NonNull;
 import androidx.recyclerview.widget.RecyclerView;
@@ -20,36 +17,17 @@ import androidx.recyclerview.widget.RecyclerView;
 import org.telegram.messenger.AndroidUtilities;
 import org.telegram.messenger.ApplicationLoader;
 import org.telegram.messenger.BuildVars;
-import org.telegram.messenger.FileLog;
-import org.telegram.messenger.LocaleController;
 import org.telegram.messenger.MessagesController;
 import org.telegram.messenger.R;
-import org.telegram.messenger.SharedConfig;
 import org.telegram.messenger.Utilities;
 import org.telegram.messenger.browser.Browser;
 import org.telegram.ui.ActionBar.AlertDialog;
 import org.telegram.ui.ActionBar.Theme;
-import org.telegram.ui.ActionBar.ThemeDescription;
 import org.telegram.ui.Cells.HeaderCell;
 import org.telegram.ui.Cells.TextCell;
 import org.telegram.ui.Cells.TextInfoPrivacyCell;
-import org.telegram.ui.Cells.TextSettingsCell;
 import org.telegram.ui.Cells.ShadowSectionCell;
 import org.telegram.ui.Components.RecyclerListView;
-import org.telegram.ui.LaunchActivity;
-import org.telegram.ui.Components.voip.VoIPHelper;
-
-import java.io.BufferedInputStream;
-import java.io.BufferedOutputStream;
-import java.io.File;
-import java.io.FileInputStream;
-import java.io.FileOutputStream;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Locale;
-import java.util.concurrent.TimeUnit;
-import java.util.zip.ZipEntry;
-import java.util.zip.ZipOutputStream;
 
 import kotlin.Unit;
 import tw.nekomimi.nekogram.DatacenterActivity;
@@ -57,7 +35,6 @@ import tw.nekomimi.nekogram.helpers.remote.UpdateHelper;
 import tw.nekomimi.nekogram.ui.BottomBuilder;
 import tw.nekomimi.nekogram.utils.AlertUtil;
 import tw.nekomimi.nekogram.utils.FileUtil;
-import tw.nekomimi.nekogram.utils.ShareUtil;
 import xyz.nextalone.nagram.NaConfig;
 
 public class NekoAboutActivity extends BaseNekoSettingsActivity {
@@ -90,7 +67,7 @@ public class NekoAboutActivity extends BaseNekoSettingsActivity {
         toggleLogsRow = rowCount++;
 
         // Conditionally add log options
-        if (BuildVars.LOGS_ENABLED) { //
+        if (BuildVars.LOGS_ENABLED) {
             sendLogsRow = rowCount++;
             clearLogsRow = rowCount++;
         } else {
@@ -118,9 +95,9 @@ public class NekoAboutActivity extends BaseNekoSettingsActivity {
             onUpdatesClick();
         } else if (position == toggleLogsRow) {
             // Switch log status
-            BuildVars.LOGS_ENABLED = BuildVars.DEBUG_VERSION = !BuildVars.LOGS_ENABLED; //
-            SharedPreferences sharedPreferences = ApplicationLoader.applicationContext.getSharedPreferences("systemConfig", Context.MODE_PRIVATE); //
-            sharedPreferences.edit().putBoolean("logsEnabled", BuildVars.LOGS_ENABLED).apply(); //
+            BuildVars.LOGS_ENABLED = BuildVars.DEBUG_VERSION = !BuildVars.LOGS_ENABLED;
+            SharedPreferences sharedPreferences = ApplicationLoader.applicationContext.getSharedPreferences("systemConfig", Context.MODE_PRIVATE);
+            sharedPreferences.edit().putBoolean("logsEnabled", BuildVars.LOGS_ENABLED).apply();
             
             // Re-calculate row positions and refresh the list
             updateRows();
@@ -128,7 +105,7 @@ public class NekoAboutActivity extends BaseNekoSettingsActivity {
                 listAdapter.notifyDataSetChanged();
             }
         } else if (position == sendLogsRow) {
-            sendLogs();
+            sendLogs(getParentActivity(), false);
         } else if (position == clearLogsRow) {
             clearLogs();
         }
@@ -169,59 +146,6 @@ public class NekoAboutActivity extends BaseNekoSettingsActivity {
             return Unit.INSTANCE;
         });
 
-        // Startup update check interval - temporarily commented out for testing
-        /*
-        String currentInterval = " - ";
-        int intervalHours = NaConfig.INSTANCE.getStartupUpdateCheckInterval().Int();
-        switch (intervalHours) {
-            case 1:
-                currentInterval += getString(R.string.UpdateCheckInterval1Hour);
-                break;
-            case 4:
-                currentInterval += getString(R.string.UpdateCheckInterval4Hours);
-                break;
-            case 8:
-                currentInterval += getString(R.string.UpdateCheckInterval8Hours);
-                break;
-            case 24:
-                currentInterval += getString(R.string.UpdateCheckInterval24Hours);
-                break;
-            default:
-                currentInterval += intervalHours + " " + getString(R.string.Hours);
-                break;
-        }
-        builder.addItem(getString(R.string.StartupUpdateCheckInterval) + currentInterval, R.drawable.msg_timer, (it) -> {
-            BottomBuilder intervalBuilder = new BottomBuilder(getParentActivity());
-            intervalBuilder.addTitle(getString(R.string.StartupUpdateCheckInterval), getString(R.string.StartupUpdateCheckIntervalNotice));
-            intervalBuilder.addRadioItem(getString(R.string.UpdateCheckInterval1Hour), NaConfig.INSTANCE.getStartupUpdateCheckInterval().Int() == 1, (radioButtonCell) -> {
-                NaConfig.INSTANCE.getStartupUpdateCheckInterval().setConfigInt(1);
-                intervalBuilder.doRadioCheck(radioButtonCell);
-                AndroidUtilities.runOnUIThread(intervalBuilder::dismiss, 500);
-                return Unit.INSTANCE;
-            });
-            intervalBuilder.addRadioItem(getString(R.string.UpdateCheckInterval4Hours), NaConfig.INSTANCE.getStartupUpdateCheckInterval().Int() == 4, (radioButtonCell) -> {
-                NaConfig.INSTANCE.getStartupUpdateCheckInterval().setConfigInt(4);
-                intervalBuilder.doRadioCheck(radioButtonCell);
-                AndroidUtilities.runOnUIThread(intervalBuilder::dismiss, 500);
-                return Unit.INSTANCE;
-            });
-            intervalBuilder.addRadioItem(getString(R.string.UpdateCheckInterval8Hours), NaConfig.INSTANCE.getStartupUpdateCheckInterval().Int() == 8, (radioButtonCell) -> {
-                NaConfig.INSTANCE.getStartupUpdateCheckInterval().setConfigInt(8);
-                intervalBuilder.doRadioCheck(radioButtonCell);
-                AndroidUtilities.runOnUIThread(intervalBuilder::dismiss, 500);
-                return Unit.INSTANCE;
-            });
-            intervalBuilder.addRadioItem(getString(R.string.UpdateCheckInterval24Hours), NaConfig.INSTANCE.getStartupUpdateCheckInterval().Int() == 24, (radioButtonCell) -> {
-                NaConfig.INSTANCE.getStartupUpdateCheckInterval().setConfigInt(24);
-                intervalBuilder.doRadioCheck(radioButtonCell);
-                AndroidUtilities.runOnUIThread(intervalBuilder::dismiss, 500);
-                return Unit.INSTANCE;
-            });
-            showDialog(intervalBuilder.create());
-            return Unit.INSTANCE;
-        });
-        */
-
         // Clean updates cache with icon
         builder.addItem(getString(R.string.DebugMenuCleanAppUpdate), R.drawable.msg_clear, (it) -> {
             UpdateHelper.cleanAppUpdate(); //
@@ -236,95 +160,6 @@ public class NekoAboutActivity extends BaseNekoSettingsActivity {
                 });
 
         showDialog(builder.create());
-    }
-
-    private void sendLogs() {
-        Activity activity = getParentActivity();
-        if (activity == null) { //
-            return;
-        }
-        AlertDialog progressDialog = new AlertDialog(activity, AlertDialog.ALERT_TYPE_SPINNER); //
-        progressDialog.setCanCancel(false); //
-        progressDialog.show(); //
-        Utilities.globalQueue.postRunnable(() -> { //
-            try {
-                File dir = AndroidUtilities.getLogsDir(); //
-                if (dir == null) { //
-                    AndroidUtilities.runOnUIThread(progressDialog::dismiss); //
-                    return;
-                }
-                File logcatFile = new File(dir, "NagramX-" + System.currentTimeMillis() + ".log"); //
-                try {
-                    ProcessBuilder pb1 = new ProcessBuilder("logcat", "-df", logcatFile.getPath()); //
-                    pb1.inheritIO(); //
-                    Process process1 = pb1.start(); //
-                    boolean finished1 = process1.waitFor(10, TimeUnit.SECONDS); //
-                    if (!finished1) { //
-                        process1.destroyForcibly(); //
-                    }
-                    ProcessBuilder pb2 = new ProcessBuilder("logcat", "-c"); //
-                    pb2.inheritIO(); //
-                    Process process2 = pb2.start(); //
-                    boolean finished2 = process2.waitFor(10, TimeUnit.SECONDS); //
-                    if (!finished2) {
-                        process2.destroyForcibly(); //
-                    }
-                } catch (Exception e) {
-                    AlertUtil.showToast(e); //
-                }
-
-                File zipFile = new File(dir, "logs.zip"); //
-                if (zipFile.exists()) { //
-                    zipFile.delete(); //
-                }
-
-                ArrayList<File> files = new ArrayList<>(Arrays.asList(dir.listFiles())); //
-
-                File filesDir = ApplicationLoader.getFilesDirFixed(); //
-                filesDir = new File(filesDir, "malformed_database/"); //
-                if (filesDir.exists() && filesDir.isDirectory()) { //
-                    File[] malformedDatabaseFiles = filesDir.listFiles(); //
-                    if (malformedDatabaseFiles != null) {
-                        files.addAll(Arrays.asList(malformedDatabaseFiles)); //
-                    }
-                }
-                final boolean[] finished = {false};
-                try (FileOutputStream dest = new FileOutputStream(zipFile); //
-                     ZipOutputStream out = new ZipOutputStream(new BufferedOutputStream(dest))) { //
-                    byte[] data = new byte[1024 * 64]; //
-                    for (File file : files) {
-                        if (!file.exists()) { //
-                            continue;
-                        }
-                        try (FileInputStream fi = new FileInputStream(file); //
-                             BufferedInputStream origin = new BufferedInputStream(fi, data.length)) { //
-                            ZipEntry entry = new ZipEntry(file.getName()); //
-                            out.putNextEntry(entry); //
-                            int count;
-                            while ((count = origin.read(data, 0, data.length)) != -1) { //
-                                out.write(data, 0, count); //
-                            }
-                        }
-                    }
-                    finished[0] = true; //
-                } catch (Exception e) {
-                    FileLog.e(e);
-                }
-                AndroidUtilities.runOnUIThread(() -> { //
-                    try {
-                        progressDialog.dismiss(); //
-                    } catch (Exception ignore) {
-                    }
-                    if (finished[0]) { //
-                        ShareUtil.shareFile(activity, zipFile); //
-                    } else {
-                        Toast.makeText(activity, LocaleController.getString("ErrorOccurred", R.string.ErrorOccurred), Toast.LENGTH_SHORT).show(); //
-                    }
-                });
-            } catch (Exception e) {
-                FileLog.e(e);
-            }
-        });
     }
 
     private void clearLogs() {
@@ -355,38 +190,7 @@ public class NekoAboutActivity extends BaseNekoSettingsActivity {
         return false;
     }
 
-    @Override
-    public ArrayList<ThemeDescription> getThemeDescriptions() {
-        ArrayList<ThemeDescription> themeDescriptions = new ArrayList<>();
 
-        // Fragment background (gray list background)
-        themeDescriptions.add(new ThemeDescription(fragmentView, ThemeDescription.FLAG_BACKGROUND, null, null, null, null, Theme.key_windowBackgroundGray));
-
-        // ActionBar colors (keep consistent with other Neko* settings screens)
-        themeDescriptions.add(new ThemeDescription(actionBar, ThemeDescription.FLAG_BACKGROUND, null, null, null, null, Theme.key_avatar_backgroundActionBarBlue));
-        themeDescriptions.add(new ThemeDescription(actionBar, ThemeDescription.FLAG_AB_ITEMSCOLOR, null, null, null, null, Theme.key_avatar_actionBarIconBlue));
-        themeDescriptions.add(new ThemeDescription(actionBar, ThemeDescription.FLAG_AB_TITLECOLOR, null, null, null, null, Theme.key_actionBarDefaultTitle));
-        themeDescriptions.add(new ThemeDescription(actionBar, ThemeDescription.FLAG_AB_SELECTORCOLOR, null, null, null, null, Theme.key_avatar_actionBarSelectorBlue));
-        themeDescriptions.add(new ThemeDescription(actionBar, ThemeDescription.FLAG_AB_SUBMENUBACKGROUND, null, null, null, null, Theme.key_actionBarDefaultSubmenuBackground));
-        themeDescriptions.add(new ThemeDescription(actionBar, ThemeDescription.FLAG_AB_SUBMENUITEM, null, null, null, null, Theme.key_actionBarDefaultSubmenuItem));
-
-        // ListView visuals
-        themeDescriptions.add(new ThemeDescription(listView, ThemeDescription.FLAG_BACKGROUND, null, null, null, null, Theme.key_windowBackgroundGray));
-        themeDescriptions.add(new ThemeDescription(listView, ThemeDescription.FLAG_LISTGLOWCOLOR, null, null, null, null, Theme.key_avatar_backgroundActionBarBlue));
-        themeDescriptions.add(new ThemeDescription(listView, ThemeDescription.FLAG_SELECTOR, null, null, null, null, Theme.key_listSelector));
-        themeDescriptions.add(new ThemeDescription(listView, 0, new Class[]{View.class}, Theme.dividerPaint, null, null, Theme.key_divider));
-        themeDescriptions.add(new ThemeDescription(listView, ThemeDescription.FLAG_BACKGROUNDFILTER, new Class[]{ShadowSectionCell.class}, null, null, null, Theme.key_windowBackgroundGrayShadow));
-
-        // Cell backgrounds (white)
-        themeDescriptions.add(new ThemeDescription(listView, ThemeDescription.FLAG_CELLBACKGROUNDCOLOR, new Class[]{HeaderCell.class, TextCell.class, TextInfoPrivacyCell.class}, null, null, null, Theme.key_windowBackgroundWhite));
-
-        // Text colors inside cells
-        themeDescriptions.add(new ThemeDescription(listView, 0, new Class[]{TextCell.class}, new String[]{"textView"}, null, null, null, Theme.key_windowBackgroundWhiteBlackText));
-        themeDescriptions.add(new ThemeDescription(listView, 0, new Class[]{TextCell.class}, new String[]{"valueTextView"}, null, null, null, Theme.key_windowBackgroundWhiteValueText));
-        themeDescriptions.add(new ThemeDescription(listView, 0, new Class[]{HeaderCell.class}, new String[]{"textView"}, null, null, null, Theme.key_windowBackgroundWhiteBlueHeader));
-
-        return themeDescriptions;
-    }
 
     private class ListAdapter extends BaseListAdapter {
 
@@ -449,7 +253,7 @@ public class NekoAboutActivity extends BaseNekoSettingsActivity {
                     } else if (position == channelRow) {
                         textCell.setTextAndValue(getString(R.string.OfficialChannel), "@nagram_channel", true, true);
                     } else if (position == channelTipsRow) {
-                        textCell.setTextAndValue(getString(R.string.TipsChannel), "@" + "NagramTips", true, true);
+                        textCell.setTextAndValue(getString(R.string.TipsChannel), "@NagramTips", true, true);
                     } else if (position == sourceCodeRow) {
                         textCell.setTextAndValue(getString(R.string.SourceCode), "Github", true, true);
                     } else if (position == translationRow) {

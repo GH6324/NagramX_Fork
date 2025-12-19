@@ -2634,8 +2634,8 @@ public class ProfileActivity extends BaseFragment implements NotificationCenter.
                     leaveChatPressed();
                 } else if (id == event_log) {
                     presentFragment(new ChannelAdminLogActivity(currentChat));
-                }else if (id ==message_filter){
-                    presentFragment(new RegexChatFiltersListActivity(chatId != 0 ? -chatId :userId));
+                }else if (id == message_filter){
+                    presentFragment(new RegexChatFiltersListActivity(chatId != 0 ? -chatId : userId));
                 } else if (id == aliasChannelName) {
                     setChannelAlias();
                 } else if (id == delete_topic) {
@@ -4656,13 +4656,6 @@ public class ProfileActivity extends BaseFragment implements NotificationCenter.
                 builder.addItem(BuildVars.LOGS_ENABLED ? getString(R.string.DebugMenuDisableLogs) : getString(R.string.DebugMenuEnableLogs), R.drawable.bug_solar, (it) -> {
                     AndroidUtil.toggleLogs();
                     updateListAnimated(false);
-                    return Unit.INSTANCE;
-                });
-
-                builder.addItem(getString(NaConfig.INSTANCE.getShowRPCError().Bool() ? R.string.RPCErrorToastDisabled : R.string.RPCErrorToastEnabled), R.drawable.msg_error_solar, (it) -> {
-                    boolean currentValue = NaConfig.INSTANCE.getShowRPCError().Bool();
-                    NaConfig.INSTANCE.getShowRPCError().setConfigBool(!currentValue);
-                    AlertsCreator.showSimpleToast(ProfileActivity.this, getString(currentValue ? R.string.NotificationDisabled : R.string.NotificationEnabled) + " RPC Error Toast");
                     return Unit.INSTANCE;
                 });
 

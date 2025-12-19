@@ -701,7 +701,7 @@ public class DialogsActivity extends BaseFragment implements NotificationCenter.
         }
     };
 
-    private class ContentView extends SizeNotifierFrameLayout implements NotificationCenter.NotificationCenterDelegate {
+    private class ContentView extends SizeNotifierFrameLayout {
 
         private Paint actionBarSearchPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
         private Paint windowBackgroundPaint = new Paint();
@@ -713,19 +713,7 @@ public class DialogsActivity extends BaseFragment implements NotificationCenter.
             blurBehindViews.add(this);
         }
 
-        // register theme/wallpaper observers from the existing onAttachedToWindow below
 
-        // removed duplicate onDetachedFromWindow here; handled below near statusDrawable detach
-
-        @Override
-        public void didReceivedNotification(int id, int account, Object... args) {
-            if (id == NotificationCenter.didSetNewTheme || id == NotificationCenter.didApplyNewTheme || id == NotificationCenter.needSetDayNightTheme || id == NotificationCenter.wallpapersDidLoad || id == NotificationCenter.wallpapersNeedReload) {
-                invalidateBlur = true;
-                startBlur();
-                invalidateBlurredViews();
-                invalidate();
-            }
-        }
 
         private int startedTrackingPointerId;
         private int startedTrackingX;
@@ -1017,9 +1005,7 @@ public class DialogsActivity extends BaseFragment implements NotificationCenter.
                 }
                 if (rightSlidingDialogContainer.hasFragment()) {
                     float scrollOffset = rightFragmentTransitionIsOpen ? 0 : scrollYOffset;
-                    boolean isTopicsPreview = isTopicsPreviewActive();
-                    boolean iosSearchVisible = isIosSearchPanelVisible();
-                    float extraAmplitude = (iosSearchVisible && isTopicsPreview) ? AndroidUtilities.dp(42) : 0f;
+                    float extraAmplitude = (isIosSearchPanelVisible() && isTopicsPreviewActive()) ? AndroidUtilities.dp(42) : 0f;
                     float opened = rightSlidingDialogContainer.openedProgress;
                     float base = AndroidUtilities.lerp(-scrollOffset, scrollOffset, opened);
                     float extra = AndroidUtilities.lerp(0f, extraAmplitude, opened);
@@ -1691,12 +1677,7 @@ public class DialogsActivity extends BaseFragment implements NotificationCenter.
         @Override
         protected void onAttachedToWindow() {
             super.onAttachedToWindow();
-            // register theme/wallpaper observers here to avoid duplicate method definitions
-            NotificationCenter.getGlobalInstance().addObserver(this, NotificationCenter.didSetNewTheme);
-            NotificationCenter.getGlobalInstance().addObserver(this, NotificationCenter.didApplyNewTheme);
-            NotificationCenter.getGlobalInstance().addObserver(this, NotificationCenter.needSetDayNightTheme);
-            NotificationCenter.getGlobalInstance().addObserver(this, NotificationCenter.wallpapersDidLoad);
-            NotificationCenter.getGlobalInstance().addObserver(this, NotificationCenter.wallpapersNeedReload);
+
             if (statusDrawable != null) {
                 statusDrawable.attach();
             }
@@ -1704,11 +1685,6 @@ public class DialogsActivity extends BaseFragment implements NotificationCenter.
 
         @Override
         protected void onDetachedFromWindow() {
-            NotificationCenter.getGlobalInstance().removeObserver(this, NotificationCenter.didSetNewTheme);
-            NotificationCenter.getGlobalInstance().removeObserver(this, NotificationCenter.didApplyNewTheme);
-            NotificationCenter.getGlobalInstance().removeObserver(this, NotificationCenter.needSetDayNightTheme);
-            NotificationCenter.getGlobalInstance().removeObserver(this, NotificationCenter.wallpapersDidLoad);
-            NotificationCenter.getGlobalInstance().removeObserver(this, NotificationCenter.wallpapersNeedReload);
             super.onDetachedFromWindow();
             if (statusDrawable != null) {
                 statusDrawable.detach();
@@ -1911,9 +1887,7 @@ public class DialogsActivity extends BaseFragment implements NotificationCenter.
             DialogCell selectedCell = null;
 
             float scrollOffset = rightFragmentTransitionIsOpen ? 0 : scrollYOffset;
-            boolean isTopicsPreviewForCells = isTopicsPreviewActive();
-            boolean iosSearchVisibleForCells = isIosSearchPanelVisible();
-            float extraAmplitudeForCells = (iosSearchVisibleForCells && isTopicsPreviewForCells) ? AndroidUtilities.dp(42) : 0f;
+            float extraAmplitudeForCells = (isIosSearchPanelVisible() && isTopicsPreviewActive()) ? AndroidUtilities.dp(42) : 0f;
             float openedForCells = rightFragmentOpenedProgress;
             float baseForCells = AndroidUtilities.lerp(-scrollOffset, scrollOffset, openedForCells);
             float extraForCells = AndroidUtilities.lerp(0f, extraAmplitudeForCells, openedForCells);

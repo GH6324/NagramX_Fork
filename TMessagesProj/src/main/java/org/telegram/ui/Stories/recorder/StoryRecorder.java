@@ -372,7 +372,6 @@ public class StoryRecorder implements NotificationCenter.NotificationCenterDeleg
             src.backgroundPaint.setColor(Theme.getColor(Theme.key_chats_actionBackground));
             src.iconDrawable = floatingButton.getContext().getResources().getDrawable(R.drawable.story_camera).mutate();
             src.iconSize = AndroidUtilities.dp(56);
-            // Respect Square FAB setting: use dp(18) when square FAB is enabled, else keep circle
             src.rounding = NaConfig.INSTANCE.getSquareFloatingActionButton().Bool() ? dp(18) : Math.max(src.screenRect.width(), src.screenRect.height()) / 2f;
             return src;
         }
