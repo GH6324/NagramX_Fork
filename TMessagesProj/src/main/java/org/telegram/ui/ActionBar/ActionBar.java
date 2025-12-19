@@ -350,6 +350,7 @@ public class ActionBar extends FrameLayout {
                 }
             }
             if (snowflakesEffect != null) {
+                snowflakesEffect.updateColors();
                 snowflakesEffect.onDraw(this, canvas);
             } else if (fireworksEffect != null) {
                 fireworksEffect.onDraw(this, canvas);

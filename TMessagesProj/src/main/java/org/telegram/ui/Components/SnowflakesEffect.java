@@ -133,6 +133,8 @@ public class SnowflakesEffect {
             this.color = color;
             particlePaint.setColor(color);
             particleThinPaint.setColor(color);
+            // Reset the cached bitmap to force regeneration with the new color
+            particleBitmap = null;
         }
     }
 

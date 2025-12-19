@@ -1710,6 +1710,7 @@ public class FilterTabsView extends FrameLayout {
                 if (snowflakesEffect == null) {
                     snowflakesEffect = new SnowflakesEffect(0);
                 }
+                snowflakesEffect.updateColors();
                 snowflakesEffect.onDraw(this, canvas);
             }
         } else if (decorationType == 1) {
@@ -1717,6 +1718,7 @@ public class FilterTabsView extends FrameLayout {
             if (snowflakesEffect == null) {
                 snowflakesEffect = new SnowflakesEffect(0);
             }
+            snowflakesEffect.updateColors();
             snowflakesEffect.onDraw(this, canvas);
         } else if (decorationType == 2) {
             shouldShowDecoration = true;
