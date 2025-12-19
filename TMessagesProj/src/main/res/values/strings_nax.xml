@@ -56,7 +56,6 @@
     <string name="ArticleTranslationProvider">Article Translation Provider</string>
     <string name="EnableSeparateArticleTranslator">Use a Different Provider for Article</string>
     <string name="DisableCrashlyticsCollection">Disable Firebase Crashlytics</string>
-    <string name="ShowStickersRowToplevel">Show Stickers in Main Settings</string>
     <string name="HideShareButtonInChannel">Hide Side \"Share\" Button</string>
     <string name="DeleteCloudBackup">Clear cloud data</string>
     <string name="DeleteCloudBackupFailed">Failed to clear cloud data</string>
@@ -308,4 +307,9 @@
     <string name="NoQuoteForwardShort">NoQuote</string>
     <string name="ForceEdgeToEdge">Force edge-to-edge</string>
     <string name="ViewDeleted">View Deleted</string>
+    <string name="PasskeyLogin">Passkey Login</string>
+    <string name="PasskeyInfo2">This feature only works with password managers that allow the user to manage trust settings for privileged apps, such as **Bitwarden** and **KeePassDX**.</string>
+    <string name="PasskeyUnsupportedTitle">Unsupported password manager</string>
+    <string name="PasskeyUnsupportedMessage">Try other password managers like **Bitwarden** or **KeePassDX**.</string>
+    <string name="PasskeyNoCredentialAvailable">No viable credential is available.</string>
 </resources>
