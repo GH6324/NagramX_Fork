@@ -1364,21 +1364,14 @@ public class ChatHistoryActivity extends BaseFragment {
                 public void didShare() {
                     int shareCount = shareAlert.getSelectedDialogsCount();
                     
-                    if (shareCount > 1) {
-                        CharSequence bulletinText = AndroidUtilities.replaceTags(LocaleController.formatPluralString("LinkSharedToManyChats", shareCount, shareCount));
+                    if (shareCount > 0) {
+                        CharSequence bulletinText = AndroidUtilities.replaceTags(LocaleController.formatPluralString("ChatHistory_LinkSharedToChat", shareCount, shareCount));
+                        int duration = shareCount > 1 ? org.telegram.ui.Components.Bulletin.DURATION_PROLONG : org.telegram.ui.Components.Bulletin.DURATION_SHORT;
                         shareAlert.setOnDismissListener(() -> AndroidUtilities.runOnUIThread(() ->
                                 BulletinFactory.of(ChatHistoryActivity.this).createSimpleBulletin(
                                         R.raw.forward,
                                         bulletinText
-                                ).hideAfterBottomSheet(false).ignoreDetach().setDuration(org.telegram.ui.Components.Bulletin.DURATION_PROLONG).show()
-                        ));
-                    } else if (shareCount == 1) {
-                        CharSequence bulletinText = AndroidUtilities.replaceTags(LocaleController.getString("LinkSharedToManyChats_one", R.string.LinkSharedToManyChats_one));
-                        shareAlert.setOnDismissListener(() -> AndroidUtilities.runOnUIThread(() ->
-                                BulletinFactory.of(ChatHistoryActivity.this).createSimpleBulletin(
-                                        R.raw.forward,
-                                        bulletinText
-                                ).hideAfterBottomSheet(false).ignoreDetach().setDuration(org.telegram.ui.Components.Bulletin.DURATION_SHORT).show()
+                                ).hideAfterBottomSheet(false).ignoreDetach().setDuration(duration).show()
                         ));
                     }
                 }

@@ -312,4 +312,6 @@
     <string name="PasskeyUnsupportedTitle">Unsupported password manager</string>
     <string name="PasskeyUnsupportedMessage">Try other password managers like **Bitwarden** or **KeePassDX**.</string>
     <string name="PasskeyNoCredentialAvailable">No viable credential is available.</string>
+    <string name="ChatHistory_LinkSharedToChat_one">Link forwarded to **a chat**.</string>
+    <string name="ChatHistory_LinkSharedToChat_other">Link forwarded to **%1$d chats**.</string>
 </resources>

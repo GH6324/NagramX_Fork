@@ -304,4 +304,6 @@
     <string name="PasskeyUnsupportedTitle">不支持的密码管理器</string>
     <string name="PasskeyUnsupportedMessage">尝试使用其他密码管理器，例如 **Bitwarden** 或 **KeePassDX**。</string>
     <string name="PasskeyNoCredentialAvailable">没有可用的有效凭证。</string>
+    <string name="ChatHistory_LinkSharedToChat_one">链接已转发至 **%1$d 个聊天**</string>
+    <string name="ChatHistory_LinkSharedToChat_other">链接已转发至 **%1$d 个聊天**</string>
 </resources>
