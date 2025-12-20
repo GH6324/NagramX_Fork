@@ -1425,6 +1425,8 @@ public class DialogsAdapter extends RecyclerListView.SelectionAdapter implements
                             }
                         } else if (collapsedView) {
                             height -= paddingTop;
+                        } else if (parentFragment.shouldShowIosSearchPanelInTabs()) {
+                            height -= AndroidUtilities.dp(42);
                         }
                     }
                 } else if (dialogsHeight - height < archiveHeight) {
@@ -1439,6 +1441,8 @@ public class DialogsAdapter extends RecyclerListView.SelectionAdapter implements
                             }
                         } else if (collapsedView) {
                             height -= paddingTop;
+                        } else if (parentFragment.shouldShowIosSearchPanelInTabs()) {
+                            height -= AndroidUtilities.dp(42);
                         }
                     }
                 } else {

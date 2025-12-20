@@ -4234,20 +4234,6 @@ public class DialogsActivity extends BaseFragment implements NotificationCenter.
                         viewPage.listView.setViewsOffset(ty);
                     }
 
-
-                    if (measuredDy > 0 && filterTabsView != null && filterTabsView.getVisibility() == View.VISIBLE && isIosSearchPanelEnabled()) {
-                        int totalHeight = 0;
-                        int count = viewPage.dialogsAdapter.getItemCount();
-                        int maxVisibleHeight = viewPage.listView.getHeight() - viewPage.listView.getPaddingTop();
-                        for (int i = 0; i < count; i++) {
-                            totalHeight += viewPage.dialogsAdapter.getItemHeight(i);
-                            if (totalHeight > maxVisibleHeight) break;
-                        }
-                        if (totalHeight <= maxVisibleHeight) {
-                            return 0;
-                        }
-                    }
-
                     if (viewPage.dialogsType == DIALOGS_TYPE_DEFAULT && viewPage.archivePullViewState != ARCHIVE_ITEM_STATE_PINNED && hasHiddenArchive() && !fixScrollYAfterArchiveOpened) {
                         int usedDy = super.scrollVerticallyBy(measuredDy, recycler, state);
                         if (viewPage.pullForegroundDrawable != null) {
@@ -14047,7 +14033,7 @@ public class DialogsActivity extends BaseFragment implements NotificationCenter.
                 && filterTabsView.getGlobalSearchView().getVisibility() == View.VISIBLE;
     }
 
-    private boolean shouldShowIosSearchPanelInTabs() {
+    public boolean shouldShowIosSearchPanelInTabs() {
         return filterTabsView != null
                 && filterTabsView.getVisibility() == View.VISIBLE
                 && isIosSearchPanelEnabled()
