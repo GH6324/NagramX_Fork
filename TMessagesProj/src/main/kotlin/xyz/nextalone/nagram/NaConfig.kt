@@ -1428,6 +1428,12 @@ object NaConfig {
             ConfigItem.configTypeBool,
             false
         )
+    val showAddToBookmark =
+        addConfig(
+            "ShowAddToBookmark",
+            ConfigItem.configTypeBool,
+            false
+        )
 
     val preferredTranslateTargetLangList = ArrayList<String>()
     fun updatePreferredTranslateTargetLangList() {
