@@ -34980,7 +34980,7 @@ public class ChatActivity extends BaseFragment implements
                         scrimPopupWindowItems = null;
                     }
                     if (option == nkbtn_translateVoice) {
-                        DialogTransKt.startTrans(getParentActivity(), Objects.toString(selectedObject.getVoiceTranscription(), ""), locale.getLanguage(), NaConfig.INSTANCE.isLLMTranslatorAvailable() ? Translator.providerLLMTranslator : 0);
+                        TranscribeButton.retryOrTranslateVoiceTranscription(selectedObject, false, locale);
                     } else {
                         if (handleTranslateDuringAutoTrans(Translator.getLocale2code(locale))) {
                             return Unit.INSTANCE;
@@ -44849,7 +44849,7 @@ public class ChatActivity extends BaseFragment implements
                 MessageTransKt.translateMessages(this, id == nkbtn_translate_llm ? Translator.providerLLMTranslator : 0);
                 break;
             case nkbtn_translateVoice:
-                DialogTransKt.startTrans(getParentActivity(), Objects.toString(selectedObject.getVoiceTranscription(), ""), NekoConfig.translateToLang.String(), NaConfig.INSTANCE.isLLMTranslatorAvailable() ? Translator.providerLLMTranslator : 0);
+                TranscribeButton.retryOrTranslateVoiceTranscription(selectedObject, false, null);
                 break;
             case nkbtn_detail: {
                 presentFragment(new MessageDetailsActivity(selectedObject, selectedObjectGroup));
