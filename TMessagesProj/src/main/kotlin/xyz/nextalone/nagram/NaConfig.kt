@@ -1128,12 +1128,6 @@ object NaConfig {
             ConfigItem.configTypeBool,
             true
         )
-    val showTranslateMessageLLM =
-        addConfig(
-            "TranslateMessageLLM",
-            ConfigItem.configTypeBool,
-            false
-        )
     val tabStyle =
         addConfig(
             "TabStyle",
@@ -1462,7 +1456,7 @@ object NaConfig {
             5 -> llmProviderXAIKey
             else -> llmApiKey
         }
-        return keyConfig.String().isNotEmpty() && showTranslateMessageLLM.Bool()
+        return keyConfig.String().isNotEmpty()
     }
 
     fun isLLMTranslatorAvailableInMenu(): Boolean {

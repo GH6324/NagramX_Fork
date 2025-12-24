@@ -109,7 +109,6 @@ public class NekoTranslatorSettingsActivity extends BaseNekoXSettingsActivity {
 
     // AI Translator
     private final AbstractConfigCell headerAITranslatorSettings = cellGroup.appendCell(new ConfigCellHeader(getString(R.string.AITranslatorSettings)));
-    private final AbstractConfigCell showTranslateMessageLLMRow = cellGroup.appendCell(new ConfigCellTextCheck(NaConfig.INSTANCE.getShowTranslateMessageLLM(), getString(R.string.ShowTranslateMessageLLMNotice), getString(R.string.ShowTranslateMessageLLM)));
     private final AbstractConfigCell llmProviderRow = cellGroup.appendCell(new ConfigCellSelectBox(null, NaConfig.INSTANCE.getLlmProviderPreset(), new String[]{
             getString(R.string.LlmProviderCustom),
             "OpenAI " + getString(R.string.LlmProviderOpenAIModel),
@@ -633,7 +632,6 @@ public class NekoTranslatorSettingsActivity extends BaseNekoXSettingsActivity {
         cellGroup.appendCell(dividerTranslation);
 
         cellGroup.appendCell(headerAITranslatorSettings);
-        cellGroup.appendCell(showTranslateMessageLLMRow);
         cellGroup.appendCell(llmProviderRow);
         List<AbstractConfigCell> currentLlmProviderConfigRows = llmProviderConfigMap.get(currentLlmProvider);
         if (currentLlmProviderConfigRows != null) {

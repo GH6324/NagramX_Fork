@@ -32503,7 +32503,7 @@ public class ChatActivity extends BaseFragment implements
                             return true;
                         });
                     }
-                    if (option == nkbtn_translate && !(selectedObject.translated || selectedObject.messageOwner.translated) && !NaConfig.INSTANCE.getShowTranslateMessageLLM().Bool()) {
+                    if (option == nkbtn_translate && !(selectedObject.translated || selectedObject.messageOwner.translated) && NaConfig.INSTANCE.isLLMTranslatorAvailable()) {
                         var translatePopupWrapper = new TranslatePopupWrapper(this, popupLayout.getSwipeBack(), this::processSelectedOption, getResourceProvider());
                         int swipeBackIndex = popupLayout.addViewToSwipeBack(translatePopupWrapper.windowLayout);
                         cell.setRightIcon(R.drawable.msg_arrowright, v12 -> popupLayout.getSwipeBack().openForeground(swipeBackIndex));
@@ -46903,8 +46903,8 @@ public class ChatActivity extends BaseFragment implements
                             }
                         }
                     }
-                    boolean showTranslate = NekoConfig.showTranslate.Bool() || (NaConfig.INSTANCE.getShowTranslateMessageLLM().Bool() && NaConfig.INSTANCE.llmIsDefaultProvider());
-                    boolean showTranslateLLM = NaConfig.INSTANCE.getShowTranslateMessageLLM().Bool() && NaConfig.INSTANCE.isLLMTranslatorAvailableInMenu() && !NaConfig.INSTANCE.llmIsDefaultProvider();
+                    boolean showTranslate = NekoConfig.showTranslate.Bool() || NaConfig.INSTANCE.llmIsDefaultProvider();
+                    boolean showTranslateLLM = NaConfig.INSTANCE.isLLMTranslatorAvailableInMenu() && !NaConfig.INSTANCE.llmIsDefaultProvider();
                     boolean isTranslatableMessage = !selectedObject.isAnimatedEmoji() && !selectedObject.isDice() && (messageObject != null || docsWithMessages);
                     if ((showTranslate || showTranslateLLM) && isTranslatableMessage) {
                         String fromLang = null;
@@ -47147,7 +47147,7 @@ public class ChatActivity extends BaseFragment implements
                     }
                 }
                 boolean showTranslate = NekoConfig.showTranslate.Bool();
-                boolean showTranslateLLM = NaConfig.INSTANCE.getShowTranslateMessageLLM().Bool() && NaConfig.INSTANCE.isLLMTranslatorAvailableInMenu() && !NaConfig.INSTANCE.llmIsDefaultProvider();
+                boolean showTranslateLLM = NaConfig.INSTANCE.isLLMTranslatorAvailableInMenu() && !NaConfig.INSTANCE.llmIsDefaultProvider();
                 boolean isTranslatingDialog = isTranslatingDialog(selectedObject);
                 if ((showTranslate || showTranslateLLM) && (selectedObject.isOutOwner() || !isTranslatingDialog)) {
                     if (messageObject != null || docsWithMessages) {
