@@ -16,15 +16,12 @@ import static org.telegram.messenger.LocaleController.getString;
 
 import android.content.Context;
 import android.os.Bundle;
-import android.os.Parcelable;
 import android.graphics.PorterDuff;
 import android.graphics.PorterDuffColorFilter;
 import android.text.TextUtils;
 import android.view.Gravity;
 import android.view.View;
 import android.view.ViewGroup;
-import android.util.SparseArray;
-import android.util.SparseIntArray;
 
 import androidx.annotation.NonNull;
 import androidx.recyclerview.widget.LinearLayoutManager;
@@ -44,6 +41,7 @@ import org.telegram.ui.ActionBar.ActionBarMenu;
 import org.telegram.ui.ActionBar.ActionBarMenuItem;
 import org.telegram.ui.ActionBar.BaseFragment;
 import org.telegram.ui.ActionBar.Theme;
+import org.telegram.ui.ActionBar.ThemeDescription;
 import org.telegram.ui.Components.LayoutHelper;
 import org.telegram.ui.Components.ViewPagerFixed;
 import org.telegram.ui.Components.RecyclerListView;
@@ -70,13 +68,14 @@ public class ChatHistorySearchActivity extends BaseFragment {
     private android.widget.TextView resultCountView;
     private ViewPagerFixed viewPager;
     private ViewPagerFixed.TabsView tabsView;
-    private SparseIntArray savedFirstVisibleByTab = new SparseIntArray();
-    private SparseIntArray savedTopOffsetByTab = new SparseIntArray();
-    private SparseArray<Parcelable> savedLayoutStateByTab = new SparseArray<>();
     private int savedCurrentTab = 0;
     private boolean isOpeningChat = false;
     private String savedSearchQuery = "";
     private String searchQuery = "";
+    
+    // Scroll position - only save for current tab
+    private android.os.Parcelable savedScrollState = null;
+    private int savedScrollTab = -1;
 
     @Override
     public View createView(Context context) {
@@ -165,12 +164,9 @@ public class ChatHistorySearchActivity extends BaseFragment {
                     @Override
                     protected void onTabPageSelected(int position) {
                         super.onTabPageSelected(position);
-                        restoreCurrentListPosition();  
-                    }
-
-                    @Override
-                    protected boolean canScroll(android.view.MotionEvent e) {
-                        return false;
+                        // Clear saved scroll position when switching tabs
+                        savedScrollState = null;
+                        savedScrollTab = -1;
                     }
                 };
         viewPager.setAdapter(new SearchCategoryPagerAdapter());
@@ -208,7 +204,7 @@ public class ChatHistorySearchActivity extends BaseFragment {
             isOpeningChat = true;
             savedCurrentTab = viewPager != null ? viewPager.getCurrentPosition() : 0;
             savedSearchQuery = searchQuery;
-            saveCurrentListPosition();
+            saveScrollPosition();
             Bundle args = new Bundle();
             if (item.dialogId < 0) {
                 args.putLong("chat_id", -item.dialogId);
@@ -269,10 +265,6 @@ public class ChatHistorySearchActivity extends BaseFragment {
         }
     }
 
-    
-
-    
-
     private void clearRecentSearch() {
         recentSearches.clear();
         saveRecentSearch();
@@ -323,7 +315,7 @@ public class ChatHistorySearchActivity extends BaseFragment {
         if (isOpeningChat) {
             isOpeningChat = false;
             restoreState();
-            restoreCurrentListPosition();
+            restoreScrollPosition();
             return;
         }
     }
@@ -421,32 +413,8 @@ public class ChatHistorySearchActivity extends BaseFragment {
                     cell.setText(gi.headerTitle);
                 } else if (holder.itemView instanceof UserCell && gi.item != null) {
                     UserCell cell = (UserCell) holder.itemView;
-                    ChatHistoryActivity.HistoryItem item = gi.item;
-                    String title;
-                    String subtitle = null;
-                    if (item.user != null) {
-                        title = UserObject.getUserName(item.user);
-                        String un = UserObject.getPublicUsername(item.user);
-                        if (!TextUtils.isEmpty(un)) {
-                            subtitle = "@" + un;
-                        } else {
-                            subtitle = String.valueOf(item.user.id);
-                        }
-                        cell.setData(item.user, null, title, subtitle, 0, false);
-                        cell.avatarImageView.setRoundRadius(AndroidUtilities.dp(24));
-                    } else {
-                        title = item.chat.title;
-                        String un = ChatObject.getPublicUsername(item.chat);
-                        if (!TextUtils.isEmpty(un)) {
-                            subtitle = "@" + un;
-                        } else if (ChatObject.isChannel(item.chat) && !item.chat.megagroup) {
-                            subtitle = LocaleController.getString(R.string.ChannelPrivate);
-                        } else {
-                            subtitle = LocaleController.getString(R.string.MegaPrivate);
-                        }
-                        cell.setData(item.chat, null, title, subtitle, 0, false);
-                        cell.avatarImageView.setRoundRadius(AndroidUtilities.dp(24));
-                    }
+                    ChatHistoryUtils.bindUserCell(cell, gi.item);
+                    cell.avatarImageView.setRoundRadius(AndroidUtilities.dp(24));
                 }
             }
         }
@@ -509,49 +477,21 @@ public class ChatHistorySearchActivity extends BaseFragment {
         static GroupedItem item(ChatHistoryActivity.HistoryItem item) { return new GroupedItem(false, null, item); }
     }
 
-    private void saveCurrentListPosition() {
-        if (viewPager == null) return;
-        int tab = viewPager.getCurrentPosition();
+    private RecyclerListView getCurrentRecyclerListView() {
+        if (viewPager == null) return null;
         View v = viewPager.getCurrentView();
-        if (!(v instanceof RecyclerListView)) return;
-        RecyclerListView lv = (RecyclerListView) v;
-        RecyclerView.LayoutManager lm = lv.getLayoutManager();
-        if (!(lm instanceof LinearLayoutManager)) return;
-        LinearLayoutManager llm = (LinearLayoutManager) lm;
-        int pos = llm.findFirstVisibleItemPosition();
-        View first = llm.findViewByPosition(pos);
-        int offset = first == null ? 0 : first.getTop() - lv.getPaddingTop();
-        savedFirstVisibleByTab.put(tab, pos);
-        savedTopOffsetByTab.put(tab, offset);
-        try {
-            Parcelable state = llm.onSaveInstanceState();
-            if (state != null) {
-                savedLayoutStateByTab.put(tab, state);
+        if (v instanceof android.widget.FrameLayout) {
+            android.widget.FrameLayout container = (android.widget.FrameLayout) v;
+            for (int i = 0; i < container.getChildCount(); i++) {
+                View child = container.getChildAt(i);
+                if (child instanceof RecyclerListView) {
+                    return (RecyclerListView) child;
+                }
             }
-        } catch (Exception ignore) {}
-    }
-
-    private void restoreCurrentListPosition() {
-        if (viewPager == null) return;
-        int tab = viewPager.getCurrentPosition();
-        Parcelable state = savedLayoutStateByTab.get(tab);
-        int pos = savedFirstVisibleByTab.get(tab, -1);
-        int offset = savedTopOffsetByTab.get(tab, 0);
-        View v = viewPager.getCurrentView();
-        if (!(v instanceof RecyclerListView)) return;
-        RecyclerListView lv = (RecyclerListView) v;
-        RecyclerView.LayoutManager lm = lv.getLayoutManager();
-        if (!(lm instanceof LinearLayoutManager)) return;
-        LinearLayoutManager llm = (LinearLayoutManager) lm;
-        if (state != null) {
-            try {
-                llm.onRestoreInstanceState(state);
-                return;
-            } catch (Exception ignore) {}
+        } else if (v instanceof RecyclerListView) {
+            return (RecyclerListView) v;
         }
-        if (pos >= 0) {
-            llm.scrollToPositionWithOffset(pos, offset);
-        }
+        return null;
     }
 
     private void restoreState() {
@@ -574,6 +514,44 @@ public class ChatHistorySearchActivity extends BaseFragment {
                 updateSearchModeUI();
             }
         }
+    }
+
+    /**
+     * Save current scroll position
+     */
+    private void saveScrollPosition() {
+        RecyclerListView lv = getCurrentRecyclerListView();
+        if (lv != null) {
+            RecyclerView.LayoutManager lm = lv.getLayoutManager();
+            if (lm != null) {
+                savedScrollState = lm.onSaveInstanceState();
+                savedScrollTab = viewPager != null ? viewPager.getCurrentPosition() : 0;
+            }
+        }
+    }
+
+    /**
+     * Restore scroll position if still on the same tab
+     */
+    private void restoreScrollPosition() {
+        if (savedScrollState == null) return;
+        if (viewPager != null && savedScrollTab != viewPager.getCurrentPosition()) {
+            savedScrollState = null;
+            savedScrollTab = -1;
+            return;
+        }
+        
+        RecyclerListView lv = getCurrentRecyclerListView();
+        if (lv != null) {
+            RecyclerView.LayoutManager lm = lv.getLayoutManager();
+            if (lm != null) {
+                lm.onRestoreInstanceState(savedScrollState);
+            }
+        }
+        
+        // Clear after restore
+        savedScrollState = null;
+        savedScrollTab = -1;
     }
 
     private void updateSearchModeUI() {
@@ -676,55 +654,6 @@ public class ChatHistorySearchActivity extends BaseFragment {
                         counter.setVisibility(View.GONE);
                     }
                 }
-                Object tag = lv.getTag();
-                if (!"scroll_listener_attached".equals(tag)) {
-                    final int pageIndex = position;
-                    lv.addOnScrollListener(new RecyclerView.OnScrollListener() {
-                        @Override
-                        public void onScrolled(RecyclerView rv, int dx, int dy) {
-                            RecyclerView.LayoutManager lm = rv.getLayoutManager();
-                            if (lm instanceof LinearLayoutManager) {
-                                LinearLayoutManager llm = (LinearLayoutManager) lm;
-                                int pos = llm.findFirstVisibleItemPosition();
-                                View first = llm.findViewByPosition(pos);
-                                int offset = first == null ? 0 : first.getTop() - rv.getPaddingTop();
-                                savedFirstVisibleByTab.put(pageIndex, pos);
-                                savedTopOffsetByTab.put(pageIndex, offset);
-                            }
-                        }
-                        @Override
-                        public void onScrollStateChanged(RecyclerView rv, int newState) {
-                            if (newState == RecyclerView.SCROLL_STATE_IDLE) {
-                                RecyclerView.LayoutManager lm = rv.getLayoutManager();
-                                if (lm instanceof LinearLayoutManager) {
-                                    LinearLayoutManager llm = (LinearLayoutManager) lm;
-                                    try {
-                                        Parcelable state = llm.onSaveInstanceState();
-                                        if (state != null) {
-                                            savedLayoutStateByTab.put(pageIndex, state);
-                                        }
-                                    } catch (Exception ignore) {}
-                                }
-                            }
-                        }
-                    });
-                    lv.setTag("scroll_listener_attached");
-                }
-                final int pagePosition = position;
-                final RecyclerListView finalLv = lv;
-                finalLv.post(() -> {
-                    Parcelable state = savedLayoutStateByTab.get(pagePosition);
-                    int pos = savedFirstVisibleByTab.get(pagePosition, -1);
-                    int offset = savedTopOffsetByTab.get(pagePosition, 0);
-                    RecyclerView.LayoutManager lm = finalLv.getLayoutManager();
-                    if (lm instanceof LinearLayoutManager) {
-                        LinearLayoutManager llm = (LinearLayoutManager) lm;
-                        if (state != null) {
-                            try { llm.onRestoreInstanceState(state); return; } catch (Exception ignore) {}
-                        }
-                        if (pos >= 0) { llm.scrollToPositionWithOffset(pos, offset); }
-                    }
-                });
             }
         }
     }
@@ -800,32 +729,64 @@ public class ChatHistorySearchActivity extends BaseFragment {
             if (holder.itemView instanceof UserCell && position >= 0 && position < categoryItems.size()) {
                 UserCell cell = (UserCell) holder.itemView;
                 ChatHistoryActivity.HistoryItem item = categoryItems.get(position);
-                String title;
-                String subtitle = null;
-                if (item.user != null) {
-                    title = UserObject.getUserName(item.user);
-                    String un = UserObject.getPublicUsername(item.user);
-                    if (!TextUtils.isEmpty(un)) {
-                        subtitle = "@" + un;
-                    } else {
-                        subtitle = "ID: " + item.user.id;
-                    }
-                    cell.setData(item.user, null, title, subtitle, 0, false);
-                    cell.avatarImageView.setRoundRadius(AndroidUtilities.dp(24));
-                } else {
-                    title = item.chat.title;
-                    String un = ChatObject.getPublicUsername(item.chat);
-                    if (!TextUtils.isEmpty(un)) {
-                        subtitle = "@" + un;
-                    } else if (ChatObject.isChannel(item.chat) && !item.chat.megagroup) {
-                        subtitle = LocaleController.getString(R.string.ChannelPrivate);
-                    } else {
-                        subtitle = LocaleController.getString(R.string.MegaPrivate);
-                    }
-                    cell.setData(item.chat, null, title, subtitle, 0, false);
-                    cell.avatarImageView.setRoundRadius(AndroidUtilities.dp(24));
-                }
+                ChatHistoryUtils.bindUserCell(cell, item);
+                cell.avatarImageView.setRoundRadius(AndroidUtilities.dp(24));
             }
         }
+    }
+
+    @Override
+    public ArrayList<ThemeDescription> getThemeDescriptions() {
+        ThemeDescription.ThemeDescriptionDelegate cellDelegate = () -> {
+            if (fragmentView != null) {
+                fragmentView.setBackgroundColor(Theme.getColor(Theme.key_windowBackgroundWhite));
+            }
+            if (listView != null) {
+                listView.setBackgroundColor(Theme.getColor(Theme.key_windowBackgroundWhite));
+            }
+            if (tabsView != null) {
+                tabsView.setBackgroundColor(Theme.getColor(Theme.key_windowBackgroundWhite));
+            }
+            if (resultCountView != null) {
+                resultCountView.setTextColor(Theme.getColor(Theme.key_windowBackgroundWhiteBlackText));
+                resultCountView.setBackground(Theme.createRoundRectDrawable(AndroidUtilities.dp(12), Theme.getColor(Theme.key_actionBarDefaultSubmenuBackground)));
+            }
+            // Refresh ViewPager pages - this will recreate all cells with new theme colors
+            if (viewPager != null) {
+                viewPager.setAdapter(new SearchCategoryPagerAdapter());
+            }
+            // Refresh adapter
+            if (adapter != null) {
+                adapter.notifyDataSetChanged();
+            }
+        };
+
+        ArrayList<ThemeDescription> themeDescriptions = new ArrayList<>();
+
+        themeDescriptions.add(new ThemeDescription(fragmentView, ThemeDescription.FLAG_BACKGROUND, null, null, null, cellDelegate, Theme.key_windowBackgroundWhite));
+
+        themeDescriptions.add(new ThemeDescription(listView, ThemeDescription.FLAG_BACKGROUND, null, null, null, null, Theme.key_windowBackgroundWhite));
+        themeDescriptions.add(new ThemeDescription(listView, ThemeDescription.FLAG_SELECTOR, null, null, null, null, Theme.key_listSelector));
+
+        if (tabsView != null) {
+            themeDescriptions.add(new ThemeDescription(tabsView, ThemeDescription.FLAG_BACKGROUND, null, null, null, null, Theme.key_windowBackgroundWhite));
+        }
+
+        // UserCell text colors
+        themeDescriptions.add(new ThemeDescription(listView, 0, new Class[]{UserCell.class}, new String[]{"nameTextView"}, null, null, null, Theme.key_windowBackgroundWhiteBlackText));
+        themeDescriptions.add(new ThemeDescription(listView, 0, new Class[]{UserCell.class}, new String[]{"statusTextView"}, null, null, null, Theme.key_windowBackgroundWhiteGrayText));
+        themeDescriptions.add(new ThemeDescription(listView, ThemeDescription.FLAG_CELLBACKGROUNDCOLOR, new Class[]{UserCell.class}, null, null, null, Theme.key_windowBackgroundWhite));
+
+        // HeaderCell for empty state
+        themeDescriptions.add(new ThemeDescription(listView, 0, new Class[]{org.telegram.ui.Cells.HeaderCell.class}, new String[]{"textView"}, null, null, null, Theme.key_windowBackgroundWhiteBlueHeader));
+        themeDescriptions.add(new ThemeDescription(listView, ThemeDescription.FLAG_CELLBACKGROUNDCOLOR, new Class[]{org.telegram.ui.Cells.HeaderCell.class}, null, null, null, Theme.key_windowBackgroundWhite));
+
+        // ActionBar
+        themeDescriptions.add(new ThemeDescription(actionBar, ThemeDescription.FLAG_BACKGROUND, null, null, null, null, Theme.key_actionBarDefault));
+        themeDescriptions.add(new ThemeDescription(actionBar, ThemeDescription.FLAG_AB_ITEMSCOLOR, null, null, null, null, Theme.key_actionBarDefaultIcon));
+        themeDescriptions.add(new ThemeDescription(actionBar, ThemeDescription.FLAG_AB_TITLECOLOR, null, null, null, null, Theme.key_actionBarDefaultTitle));
+        themeDescriptions.add(new ThemeDescription(actionBar, ThemeDescription.FLAG_AB_SELECTORCOLOR, null, null, null, null, Theme.key_actionBarDefaultSelector));
+
+        return themeDescriptions;
     }
 }

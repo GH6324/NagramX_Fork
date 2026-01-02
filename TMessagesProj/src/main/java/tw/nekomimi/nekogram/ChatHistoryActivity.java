@@ -22,9 +22,6 @@ import android.view.Gravity;
 import android.view.MotionEvent;
 import android.view.View;
 import android.view.ViewGroup;
-import android.util.SparseIntArray;
-import android.os.Parcelable;
-import android.util.SparseArray;
 import android.widget.CheckBox;
 import android.widget.EditText;
 import android.widget.FrameLayout;
@@ -59,6 +56,7 @@ import org.telegram.ui.ActionBar.ActionBarPopupWindow;
 import org.telegram.ui.ActionBar.AlertDialog;
 import org.telegram.ui.ActionBar.BaseFragment;
 import org.telegram.ui.ActionBar.Theme;
+import org.telegram.ui.ActionBar.ThemeDescription;
 import org.telegram.ui.Components.AvatarDrawable;
 import org.telegram.ui.Components.BackupImageView;
 import org.telegram.ui.Components.BlurredRecyclerView;
@@ -116,9 +114,10 @@ public class ChatHistoryActivity extends BaseFragment {
     // Data
     private ArrayList<HistoryItem> allHistoryItems = new ArrayList<>();
     private ArrayList<HistoryItem> filteredHistoryItems = new ArrayList<>();
-    private SparseIntArray savedFirstVisibleByTab = new SparseIntArray();
-    private SparseIntArray savedTopOffsetByTab = new SparseIntArray();
-    private SparseArray<Parcelable> savedLayoutStateByTab = new SparseArray<>();
+
+    // Scroll position - only save for current tab
+    private android.os.Parcelable savedScrollState = null;
+    private int savedScrollTab = -1; // Which tab the saved position belongs to
 
 
     // Search
@@ -263,21 +262,15 @@ public class ChatHistoryActivity extends BaseFragment {
             @Override
             protected void onTabPageSelected(int position) {
                 super.onTabPageSelected(position);
-                saveCurrentListPosition();
+                
+                // Clear saved scroll position when switching tabs
+                savedScrollState = null;
+                savedScrollTab = -1;
+                
                 // Exit multi-select mode when switching tabs
                 if (isMultiSelectMode) {
                     exitMultiSelectMode();
                 }
-            }
-            
-            @Override
-            public boolean onTouchEvent(MotionEvent ev) {
-                return false;
-            }
-            
-            @Override
-            public boolean onInterceptTouchEvent(MotionEvent ev) {
-                return false;
             }
         };
         viewPager.setAdapter(new CategoryPagerAdapter());
@@ -304,69 +297,6 @@ public class ChatHistoryActivity extends BaseFragment {
                 tabsView.addTab(i, getTabTitle(category));
             }
             tabsView.finishAddingTabs();
-        }
-    }
-
-    private void saveCurrentListPosition() {
-        if (viewPager == null) return;
-        int tab = viewPager.getCurrentPosition();
-        View v = viewPager.getCurrentView();
-        if (!(v instanceof FrameLayout)) return;
-        BlurredRecyclerView listView = null;
-        FrameLayout container = (FrameLayout) v;
-        for (int i = 0; i < container.getChildCount(); i++) {
-            View child = container.getChildAt(i);
-            if (child instanceof BlurredRecyclerView) {
-                listView = (BlurredRecyclerView) child;
-                break;
-            }
-        }
-        if (listView == null) return;
-        RecyclerView.LayoutManager lm = listView.getLayoutManager();
-        if (!(lm instanceof LinearLayoutManager)) return;
-        LinearLayoutManager llm = (LinearLayoutManager) lm;
-        int pos = llm.findFirstVisibleItemPosition();
-        View first = llm.findViewByPosition(pos);
-        int offset = first == null ? 0 : first.getTop() - listView.getPaddingTop();
-        savedFirstVisibleByTab.put(tab, pos);
-        savedTopOffsetByTab.put(tab, offset);
-        try {
-            Parcelable state = llm.onSaveInstanceState();
-            if (state != null) {
-                savedLayoutStateByTab.put(tab, state);
-            }
-        } catch (Exception ignore) {}
-    }
-
-    private void restoreCurrentListPosition() {
-        if (viewPager == null) return;
-        int tab = viewPager.getCurrentPosition();
-        Parcelable state = savedLayoutStateByTab.get(tab);
-        int pos = savedFirstVisibleByTab.get(tab, -1);
-        int offset = savedTopOffsetByTab.get(tab, 0);
-        View v = viewPager.getCurrentView();
-        if (!(v instanceof FrameLayout)) return;
-        BlurredRecyclerView listView = null;
-        FrameLayout container = (FrameLayout) v;
-        for (int i = 0; i < container.getChildCount(); i++) {
-            View child = container.getChildAt(i);
-            if (child instanceof BlurredRecyclerView) {
-                listView = (BlurredRecyclerView) child;
-                break;
-            }
-        }
-        if (listView == null) return;
-        RecyclerView.LayoutManager lm = listView.getLayoutManager();
-        if (!(lm instanceof LinearLayoutManager)) return;
-        LinearLayoutManager llm = (LinearLayoutManager) lm;
-        if (state != null) {
-            try {
-                llm.onRestoreInstanceState(state);
-                return;
-            } catch (Exception ignore) {}
-        }
-        if (pos >= 0) {
-            llm.scrollToPositionWithOffset(pos, offset);
         }
     }
 
@@ -654,7 +584,7 @@ public class ChatHistoryActivity extends BaseFragment {
     }
 
     private void showOptionsMenu() {
-        // Create popup menu items
+        // Create dialog menu items
         ArrayList<String> items = new ArrayList<>();
         ArrayList<Integer> icons = new ArrayList<>();
         ArrayList<Runnable> actions = new ArrayList<>();
@@ -671,35 +601,25 @@ public class ChatHistoryActivity extends BaseFragment {
         icons.add(R.drawable.msg_delete);
         actions.add(() -> showClearHistoryDialog());
 
-        // Create and show popup
-        ActionBarPopupWindow.ActionBarPopupWindowLayout popupLayout = new ActionBarPopupWindow.ActionBarPopupWindowLayout(getParentActivity());
-        ActionBarPopupWindow popupWindow = new ActionBarPopupWindow(popupLayout, LayoutHelper.WRAP_CONTENT, LayoutHelper.WRAP_CONTENT);
-
-        for (int i = 0; i < items.size(); i++) {
-            ActionBarMenuSubItem subItem = new ActionBarMenuSubItem(getParentActivity(), i == 0, i == items.size() - 1);
-            subItem.setTextAndIcon(items.get(i), icons.get(i));
-            final int index = i;
-            subItem.setOnClickListener(v -> {
-                popupWindow.dismiss();
-                actions.get(index).run();
-            });
-            popupLayout.addView(subItem);
+        // Create and show dialog
+        AlertDialog.Builder builder = new AlertDialog.Builder(getParentActivity());
+        builder.setTitle(getString(R.string.Settings));
+        
+        // Convert to arrays for AlertDialog
+        String[] itemsArray = items.toArray(new String[0]);
+        int[] iconsArray = new int[icons.size()];
+        for (int i = 0; i < icons.size(); i++) {
+            iconsArray[i] = icons.get(i);
         }
-        popupWindow.setPauseNotifications(true);
-        popupWindow.setDismissAnimationDuration(220);
-        popupWindow.setOutsideTouchable(true);
-        popupWindow.setClippingEnabled(true);
-        popupWindow.setAnimationStyle(R.style.PopupContextAnimation);
-        popupWindow.setFocusable(true);
-        popupLayout.measure(View.MeasureSpec.makeMeasureSpec(AndroidUtilities.dp(1000), View.MeasureSpec.AT_MOST), View.MeasureSpec.makeMeasureSpec(AndroidUtilities.dp(1000), View.MeasureSpec.AT_MOST));
-        popupWindow.setInputMethodMode(ActionBarPopupWindow.INPUT_METHOD_NOT_NEEDED);
-        popupWindow.getContentView().setFocusableInTouchMode(true);
-
-        // Show popup at the right position
-        View anchor = actionBar.createMenu().getChildAt(actionBar.createMenu().getChildCount() - 1);
-        if (anchor != null) {
-            popupWindow.showAsDropDown(anchor, -popupLayout.getMeasuredWidth() + AndroidUtilities.dp(14), -AndroidUtilities.dp(18));
-        }
+        
+        builder.setItems(itemsArray, iconsArray, (dialog, which) -> {
+            if (which >= 0 && which < actions.size()) {
+                actions.get(which).run();
+            }
+        });
+        
+        builder.setNegativeButton(getString(R.string.Cancel), null);
+        showDialog(builder.create());
     }
 
     private void showAccountSwitchDialog() {
@@ -782,9 +702,61 @@ public class ChatHistoryActivity extends BaseFragment {
         savedSearchMode = false;
         savedSearchQuery = "";
         isOpeningChat = false;
-        savedFirstVisibleByTab.clear();
-        savedTopOffsetByTab.clear();
-        savedLayoutStateByTab.clear();
+        savedScrollState = null;
+        savedScrollTab = -1;
+    }
+
+    /**
+     * Save current scroll position
+     */
+    private void saveScrollPosition() {
+        if (viewPager == null) return;
+        View v = viewPager.getCurrentView();
+        if (!(v instanceof FrameLayout)) return;
+        
+        FrameLayout container = (FrameLayout) v;
+        for (int i = 0; i < container.getChildCount(); i++) {
+            View child = container.getChildAt(i);
+            if (child instanceof RecyclerView) {
+                RecyclerView.LayoutManager lm = ((RecyclerView) child).getLayoutManager();
+                if (lm != null) {
+                    savedScrollState = lm.onSaveInstanceState();
+                    savedScrollTab = viewPager.getCurrentPosition();
+                }
+                break;
+            }
+        }
+    }
+
+    /**
+     * Restore scroll position if still on the same tab
+     */
+    private void restoreScrollPosition() {
+        if (viewPager == null || savedScrollState == null) return;
+        if (savedScrollTab != viewPager.getCurrentPosition()) {
+            savedScrollState = null;
+            savedScrollTab = -1;
+            return;
+        }
+        
+        View v = viewPager.getCurrentView();
+        if (!(v instanceof FrameLayout)) return;
+        
+        FrameLayout container = (FrameLayout) v;
+        for (int i = 0; i < container.getChildCount(); i++) {
+            View child = container.getChildAt(i);
+            if (child instanceof RecyclerView) {
+                RecyclerView.LayoutManager lm = ((RecyclerView) child).getLayoutManager();
+                if (lm != null) {
+                    lm.onRestoreInstanceState(savedScrollState);
+                }
+                break;
+            }
+        }
+        
+        // Clear after restore
+        savedScrollState = null;
+        savedScrollTab = -1;
     }
 
     @Override
@@ -817,7 +789,7 @@ public class ChatHistoryActivity extends BaseFragment {
             }
             
             restoreState();
-            restoreCurrentListPosition();
+            restoreScrollPosition();
             
             return; // Don't execute the general refresh logic below
         }
@@ -971,27 +943,6 @@ public class ChatHistoryActivity extends BaseFragment {
                         }
                         return false;
                     });
-
-                    final BlurredRecyclerView lv = listView;
-                    final int pagePosition = position;
-                    lv.post(() -> {
-                        Parcelable state = savedLayoutStateByTab.get(pagePosition);
-                        int pos = savedFirstVisibleByTab.get(pagePosition, -1);
-                        int offset = savedTopOffsetByTab.get(pagePosition, 0);
-                        RecyclerView.LayoutManager lm = lv.getLayoutManager();
-                        if (lm instanceof LinearLayoutManager) {
-                            LinearLayoutManager llm = (LinearLayoutManager) lm;
-                            if (state != null) {
-                                try {
-                                    llm.onRestoreInstanceState(state);
-                                    return;
-                                } catch (Exception ignore) {}
-                            }
-                            if (pos >= 0) {
-                                llm.scrollToPositionWithOffset(pos, offset);
-                            }
-                        }
-                    });
                 }
             }
         }
@@ -1096,25 +1047,7 @@ public class ChatHistoryActivity extends BaseFragment {
             if (viewType == 1) {
                 view = new EmptyStateCell(mContext);
             } else {
-                HistoryCell historyCell = new HistoryCell(mContext);
-                historyCell.setOnLongClickListener(v -> {
-                    if (!isMultiSelectMode && historyCell.currentItem != null) {
-                        enterMultiSelectMode();
-                        toggleItemSelection(historyCell.currentItem, historyCell);
-                        return true;
-                    }
-                    return false;
-                });
-                historyCell.setOnClickListener(v -> {
-                    if (historyCell.currentItem != null) {
-                        if (isMultiSelectMode) {
-                            toggleItemSelection(historyCell.currentItem, historyCell);
-                        } else {
-                            openChat(historyCell.currentItem);
-                        }
-                    }
-                });
-                view = historyCell;
+                view = new HistoryCell(mContext);
             }
             view.setLayoutParams(new RecyclerView.LayoutParams(RecyclerView.LayoutParams.MATCH_PARENT, RecyclerView.LayoutParams.WRAP_CONTENT));
             return new RecyclerListView.Holder(view);
@@ -1127,20 +1060,7 @@ public class ChatHistoryActivity extends BaseFragment {
     }
 
     private String getCategoryDisplayName(ChatCategory category) {
-        switch (category) {
-            case ALL:
-                return getString(R.string.ChatCategoryAll);
-            case CHANNELS:
-                return getString(R.string.ChatCategoryChannels);
-            case GROUPS:
-                return getString(R.string.ChatCategoryGroups);
-            case USERS:
-                return getString(R.string.ChatCategoryUsers);
-            case BOTS:
-                return getString(R.string.ChatCategoryBots);
-            default:
-                return getString(R.string.ChatCategoryAll);
-        }
+        return ChatHistoryUtils.getCategoryDisplayName(category.id);
     }
     
     public void openChat(HistoryItem item) {
@@ -1159,7 +1079,7 @@ public class ChatHistoryActivity extends BaseFragment {
         }
 
         isOpeningChat = true;
-        saveCurrentListPosition();
+        saveScrollPosition();
         saveState();
 
         // Check if we're viewing the current user's own account
@@ -1417,6 +1337,10 @@ public class ChatHistoryActivity extends BaseFragment {
     }
 
     private void deleteChatFromHistory(HistoryItem item) {
+        deleteChatFromHistory(item, true);
+    }
+
+    private void deleteChatFromHistory(HistoryItem item, boolean refreshUI) {
         // Get recent dialogs directly (no reflection needed)
         LinkedList<Long> recentDialogIds = BackButtonMenuRecent.getRecentDialogs(currentAccount);
 
@@ -1426,12 +1350,14 @@ public class ChatHistoryActivity extends BaseFragment {
         // Save the updated list directly (no reflection needed)
         BackButtonMenuRecent.saveRecentDialogs(currentAccount, recentDialogIds);
 
-        // Refresh the interface
-        loadHistoryItems();
-        refreshAllPages();
+        if (refreshUI) {
+            // Refresh the interface
+            loadHistoryItems();
+            refreshAllPages();
 
-        BulletinFactory.of(this).createSimpleBulletin(R.raw.ic_delete,
-            getString(R.string.ChatRemovedFromRecent)).show();
+            BulletinFactory.of(this).createSimpleBulletin(R.raw.ic_delete,
+                getString(R.string.ChatRemovedFromRecent)).show();
+        }
     }
 
 
@@ -1555,43 +1481,75 @@ public class ChatHistoryActivity extends BaseFragment {
             }
         }
         
-        @Override
-        public boolean onTouchEvent(MotionEvent event) {
-            switch (event.getAction()) {
-                case MotionEvent.ACTION_DOWN:
-                    setBackgroundColor(Theme.getColor(Theme.key_listSelector));
-                    break;
-                case MotionEvent.ACTION_UP:
-                case MotionEvent.ACTION_CANCEL:
-                    setBackgroundColor(Theme.getColor(Theme.key_windowBackgroundWhite));
-                    break;
-            }
-            return super.onTouchEvent(event);
-        }
-
         public void setMultiSelectMode(boolean multiSelectMode) {
             if (multiSelectMode) {
                 // Keep options button visible in multi-select mode
                 optionsButton.setVisibility(VISIBLE);
+                // Clear any pending animation delegate from previous use
+                checkBox2.setProgressDelegate(null);
+                // Cancel any ongoing animation
+                checkBox2.getCheckBoxBase().cancelCheckAnimator();
+                // Reset checkbox to unchecked state without animation
+                checkBox2.setChecked(false, false);
+                // IMPORTANT: Force progress to 0 even if setChecked returned early
+                // This handles the case where isChecked was already false (so setChecked returns early)
+                // but progress was non-zero from cancelled animation or recycled cell
+                if (checkBox2.getCheckBoxBase().getProgress() != 0) {
+                    checkBox2.getCheckBoxBase().setProgress(0);
+                }
                 checkBox2.setVisibility(VISIBLE);
+                // Note: Don't set checkbox state here - let setSelected() handle it
+                // since setSelected() is called right after this in onBindViewHolder
+                // with the correct selection state
             } else {
-                // First reset selection with animation while checkbox is still visible
-                setSelected(false);
+                // Keep checkbox visible during deselection animation
                 optionsButton.setVisibility(VISIBLE);
-                checkBox2.setVisibility(GONE);
+                // Animate unchecked, then hide after animation completes
+                setSelected(false, true);
             }
         }
 
         public void setSelected(boolean selected) {
-            if (isSelected == selected) {
+            setSelected(selected, false);
+        }
+
+        public void setSelected(boolean selected, boolean hideAfterAnimation) {
+            // Always update the checkbox state when in multi-select mode or when visibility changes
+            // Don't skip update even if isSelected == selected, because the checkbox visual state
+            // might be out of sync after cell recycling
+            boolean wasSelected = isSelected;
+            isSelected = selected;
+            
+            // Only animate if CheckBox2 is visible and state actually changed
+            boolean shouldAnimate = checkBox2.getVisibility() == VISIBLE && wasSelected != selected;
+            
+            if (hideAfterAnimation && !selected) {
+                if (checkBox2.getVisibility() == VISIBLE) {
+                    // Set progress delegate to hide checkbox after animation completes
+                    checkBox2.setProgressDelegate(progress -> {
+                        if (progress == 0) {
+                            checkBox2.setVisibility(GONE);
+                            checkBox2.setProgressDelegate(null);
+                        }
+                    });
+                    checkBox2.setChecked(false, true);
+                } else {
+                    checkBox2.setVisibility(GONE);
+                }
                 return;
             }
             
-            isSelected = selected;
-            
-            // Only animate if CheckBox2 is visible
-            boolean shouldAnimate = checkBox2.getVisibility() == VISIBLE;
-            checkBox2.setChecked(selected, shouldAnimate);
+            // Update checkbox state if visible
+            if (checkBox2.getVisibility() == VISIBLE) {
+                checkBox2.setChecked(selected, shouldAnimate);
+                // IMPORTANT: Force correct progress value in case setChecked returned early
+                // This handles cases where CheckBoxBase.isChecked already matched 'selected'
+                // but progress was out of sync (e.g., from cancelled animation or recycling)
+                float expectedProgress = selected ? 1.0f : 0.0f;
+                if (!shouldAnimate && checkBox2.getCheckBoxBase().getProgress() != expectedProgress) {
+                    checkBox2.getCheckBoxBase().setProgress(expectedProgress);
+                }
+            }
         }
 
         public boolean isSelected() {
@@ -1600,6 +1558,10 @@ public class ChatHistoryActivity extends BaseFragment {
 
         public void setDialog(HistoryItem item) {
             this.currentItem = item;
+            
+            // Reset selection state when binding new item to handle cell recycling
+            // The actual selection state will be set by onBindViewHolder after this
+            isSelected = false;
 
             if (item.user != null) {
                 avatarDrawable.setInfo(item.user);
@@ -1871,10 +1833,49 @@ public class ChatHistoryActivity extends BaseFragment {
     }
 
     private void deleteSelectedChats() {
+        int count = selectedItems.size();
+        // Batch delete without refreshing UI for each item
         for (HistoryItem item : selectedItems) {
-            deleteChatFromHistory(item);
+            deleteChatFromHistory(item, false);
         }
+        // Refresh UI only once after all deletions
+        loadHistoryItems();
         exitMultiSelectMode();
         refreshAllPages();
+        
+        // Show confirmation bulletin
+        BulletinFactory.of(this).createSimpleBulletin(R.raw.ic_delete,
+            LocaleController.formatPluralString("ChatHistory_ChatsRemoved", count)).show();
+    }
+
+    @Override
+    public ArrayList<ThemeDescription> getThemeDescriptions() {
+        ThemeDescription.ThemeDescriptionDelegate cellDelegate = () -> {
+            if (fragmentView != null) {
+                fragmentView.setBackgroundColor(Theme.getColor(Theme.key_windowBackgroundGray));
+            }
+            if (tabsView != null) {
+                tabsView.setBackgroundColor(Theme.getColor(Theme.key_windowBackgroundWhite));
+            }
+            // Refresh all pages in ViewPager
+            if (viewPager != null) {
+                viewPager.setAdapter(new CategoryPagerAdapter());
+            }
+        };
+
+        ArrayList<ThemeDescription> themeDescriptions = new ArrayList<>();
+
+        themeDescriptions.add(new ThemeDescription(fragmentView, ThemeDescription.FLAG_BACKGROUND, null, null, null, cellDelegate, Theme.key_windowBackgroundGray));
+
+        if (tabsView != null) {
+            themeDescriptions.add(new ThemeDescription(tabsView, ThemeDescription.FLAG_BACKGROUND, null, null, null, cellDelegate, Theme.key_windowBackgroundWhite));
+        }
+
+        themeDescriptions.add(new ThemeDescription(actionBar, ThemeDescription.FLAG_BACKGROUND, null, null, null, null, Theme.key_actionBarDefault));
+        themeDescriptions.add(new ThemeDescription(actionBar, ThemeDescription.FLAG_AB_ITEMSCOLOR, null, null, null, null, Theme.key_actionBarDefaultIcon));
+        themeDescriptions.add(new ThemeDescription(actionBar, ThemeDescription.FLAG_AB_TITLECOLOR, null, null, null, null, Theme.key_actionBarDefaultTitle));
+        themeDescriptions.add(new ThemeDescription(actionBar, ThemeDescription.FLAG_AB_SELECTORCOLOR, null, null, null, null, Theme.key_actionBarDefaultSelector));
+
+        return themeDescriptions;
     }
 }
