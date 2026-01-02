@@ -450,8 +450,6 @@ public class ChatActivity extends BaseFragment implements
     private final static int nkbtn_clearDeleted = 2100;
     private final static int nkbtn_viewDeleted = 2101;
 
-    private final static int BOTTOM_TAG_MUTE = 200;
-
     public int shareAlertDebugMode = DEBUG_SHARE_ALERT_MODE_NORMAL;
     public boolean shareAlertDebugTopicsSlowMotion;
 
@@ -2549,6 +2547,14 @@ public class ChatActivity extends BaseFragment implements
                 } else if (state == 2 || state == 5) {
                     instantCameraView.cancel(state == 2);
                 }
+            }
+        }
+
+        @Override
+        public void setVideoRecordingCameraFront(boolean front) {
+            checkInstantCameraView();
+            if (instantCameraView != null) {
+                instantCameraView.setUseFrontCamera(front);
             }
         }
 
@@ -12785,6 +12791,9 @@ public class ChatActivity extends BaseFragment implements
                 bottomOverlayAnimation.setStartDelay(200);
             } else {
                 View text = bottomOverlayLinks ? bottomOverlayLinksText : bottomOverlayChatText;
+                if (text != null) {
+                    text.setVisibility(View.VISIBLE);
+                }
                 bottomOverlayAnimation.playTogether(
                         ObjectAnimator.ofFloat(bottomOverlayProgress, View.SCALE_X, 0.1f),
                         ObjectAnimator.ofFloat(bottomOverlayProgress, View.SCALE_Y, 0.1f),
@@ -27838,7 +27847,7 @@ public class ChatActivity extends BaseFragment implements
     private boolean shouldHideBottomFor3ButtonNav() {
         return NaConfig.INSTANCE.getDisableChannelMuteButton().Bool() && !isGesture() &&
                 chatMode == MODE_DEFAULT && !isReport() && currentChat != null &&
-                ChatObject.isChannel(currentChat) && currentChat.broadcast && !ChatObject.canWriteToChat(currentChat);
+                ChatObject.isChannelAndNotMegaGroup(currentChat) && !ChatObject.canWriteToChat(currentChat) && !ChatObject.isNotInChat(currentChat);
     }
 
     private boolean shouldHideBottomForGesture() {
@@ -27866,11 +27875,10 @@ public class ChatActivity extends BaseFragment implements
         if (actionBar != null && actionBar.isActionModeShowed()) {
             return false;
         }
-        if ((searchItem != null && searchItemVisible) || chatMode == MODE_SEARCH) {
+        if (searchItem != null && searchItemVisible) {
             return false;
         }
-        Object tag = bottomOverlayChatText.getTag();
-        return tag instanceof Integer && (Integer) tag == BOTTOM_TAG_MUTE;
+        return chatMode == MODE_DEFAULT && !ChatObject.canWriteToChat(currentChat) && !ChatObject.isNotInChat(currentChat);
     }
     // hide bottom end
 
@@ -27967,11 +27975,9 @@ public class ChatActivity extends BaseFragment implements
             if (!getMessagesController().isDialogMuted(dialog_id, getTopicId())) {
                 bottomOverlayChatText.setText(LocaleController.getString(R.string.ChannelMuteNoCaps), false);
                 bottomOverlayChatText.setEnabled(true);
-                bottomOverlayChatText.setTag(BOTTOM_TAG_MUTE);
             } else {
                 bottomOverlayChatText.setText(LocaleController.getString(R.string.ChannelUnmuteNoCaps), true);
                 bottomOverlayChatText.setEnabled(true);
-                bottomOverlayChatText.setTag(BOTTOM_TAG_MUTE);
             }
             showBottomOverlayProgress(false, bottomOverlayProgress.getTag() != null);
         } else if (currentChat != null) {
@@ -28010,11 +28016,9 @@ public class ChatActivity extends BaseFragment implements
                     if (!getMessagesController().isDialogMuted(dialog_id, getTopicId())) {
                         bottomOverlayChatText.setText(LocaleController.getString(R.string.ChannelMuteNoCaps), false);
                         bottomOverlayChatText.setEnabled(true);
-                        bottomOverlayChatText.setTag(BOTTOM_TAG_MUTE);
                     } else {
                         bottomOverlayChatText.setText(LocaleController.getString(R.string.ChannelUnmuteNoCaps), true);
                         bottomOverlayChatText.setEnabled(true);
-                        bottomOverlayChatText.setTag(BOTTOM_TAG_MUTE);
                     }
                     showBottomOverlayProgress(false, bottomOverlayProgress.getTag() != null);
                     showGiftButton = chatInfo != null && chatInfo.stargifts_available;
@@ -28068,10 +28072,8 @@ public class ChatActivity extends BaseFragment implements
             } else if (UserObject.isReplyUser(currentUser)) {
                 if (!getMessagesController().isDialogMuted(dialog_id, getTopicId())) {
                     bottomOverlayChatText.setText(LocaleController.getString(R.string.ChannelMuteNoCaps), false);
-                    bottomOverlayChatText.setTag(BOTTOM_TAG_MUTE);
                 } else {
                     bottomOverlayChatText.setText(LocaleController.getString(R.string.ChannelUnmuteNoCaps), true);
-                    bottomOverlayChatText.setTag(BOTTOM_TAG_MUTE);
                 }
                 showBottomOverlayProgress(false, true);
             } else if (botUser != null && currentUser.bot && !UserObject.isDeleted(currentUser) && !UserObject.isBotForum(currentUser)) {
@@ -28725,6 +28727,9 @@ public class ChatActivity extends BaseFragment implements
                                 pinnedMessageEnterOffset = (float) animation.getAnimatedValue();
                                 invalidateChatListViewTopPadding();
                                 invalidateMessagesVisiblePart();
+                                if (contentView != null && SharedConfig.getDevicePerformanceClass() == SharedConfig.PERFORMANCE_CLASS_HIGH) {
+                                    contentView.invalidateBlurredViews();
+                                }
                             }
                         });
                         pinnedMessageView.setVisibility(View.VISIBLE);
@@ -28736,6 +28741,9 @@ public class ChatActivity extends BaseFragment implements
                             public void onAnimationEnd(Animator animation) {
                                 if (pinnedMessageViewAnimator != null && pinnedMessageViewAnimator.equals(animation)) {
                                     pinnedMessageViewAnimator = null;
+                                }
+                                if (contentView != null && SharedConfig.getDevicePerformanceClass() != SharedConfig.PERFORMANCE_CLASS_HIGH) {
+                                    contentView.invalidateBlurredViews();
                                 }
                             }
 
@@ -28752,6 +28760,9 @@ public class ChatActivity extends BaseFragment implements
                         invalidateChatListViewTopPadding();
                         invalidateMessagesVisiblePart();
                         pinnedMessageView.setVisibility(View.VISIBLE);
+                        if (contentView != null) {
+                            contentView.invalidateBlurredViews();
+                        }
                     }
                 }
                 for (int a = 0; a < pinnedNextAnimation.length; a++) {
@@ -30096,6 +30107,9 @@ public class ChatActivity extends BaseFragment implements
                         topChatPanelViewOffset = (float) animation.getAnimatedValue();
                         invalidateChatListViewTopPadding();
                         invalidateMessagesVisiblePart();
+                        if (contentView != null && SharedConfig.getDevicePerformanceClass() == SharedConfig.PERFORMANCE_CLASS_HIGH) {
+                            contentView.invalidateBlurredViews();
+                        }
                     });
                     reportSpamViewAnimator.playTogether(animator);
                     reportSpamViewAnimator.setDuration(200);
@@ -30104,6 +30118,9 @@ public class ChatActivity extends BaseFragment implements
                         public void onAnimationEnd(Animator animation) {
                             if (reportSpamViewAnimator != null && reportSpamViewAnimator.equals(animation)) {
                                 reportSpamViewAnimator = null;
+                            }
+                            if (contentView != null && SharedConfig.getDevicePerformanceClass() != SharedConfig.PERFORMANCE_CLASS_HIGH) {
+                                contentView.invalidateBlurredViews();
                             }
                         }
 
@@ -30119,6 +30136,9 @@ public class ChatActivity extends BaseFragment implements
                     topChatPanelViewOffset = 0;
                     invalidateChatListViewTopPadding();
                     invalidateMessagesVisiblePart();
+                    if (contentView != null) {
+                        contentView.invalidateBlurredViews();
+                    }
                 }
             }
         } else if (topChatPanelView != null) {
@@ -31500,7 +31520,7 @@ public class ChatActivity extends BaseFragment implements
                 icons.add(R.drawable.msg_user_search);
             }
 
-            if (!getUserConfig().isPremium() && !getMessagesController().premiumFeaturesBlocked() && message.getDocument() != null && message.getDocument().size >= 150 * 1024 * 1024 && FileLoader.getInstance(currentAccount).isLoadingFile(FileLoader.getAttachFileName(message.getDocument())) && chatMode != MODE_SAVED) {
+            if (BuildConfig.DEBUG && !getUserConfig().isPremium() && !getMessagesController().premiumFeaturesBlocked() && message.getDocument() != null && message.getDocument().size >= 150 * 1024 * 1024 && FileLoader.getInstance(currentAccount).isLoadingFile(FileLoader.getAttachFileName(message.getDocument())) && chatMode != MODE_SAVED) {
                 items.add(LocaleController.getString(R.string.PremiumSpeedPromo));
                 options.add(OPTION_SPEED_PROMO);
                 icons.add(R.drawable.msg_speed);
@@ -32814,6 +32834,10 @@ public class ChatActivity extends BaseFragment implements
                         }
                     }
                 }
+            }
+
+            if (NaConfig.INSTANCE.getSmoothRoundedMenu().Bool()) {
+                popupLayout.updateRadialSelectors();
             }
 
             ReactionsContainerLayout finalReactionsLayout1 = reactionsLayout;
@@ -46986,8 +47010,8 @@ public class ChatActivity extends BaseFragment implements
                             }
                         }
                     }
-                    boolean showTranslate = NekoConfig.showTranslate.Bool() || NaConfig.INSTANCE.llmIsDefaultProvider();
-                    boolean showTranslateLLM = NaConfig.INSTANCE.isLLMTranslatorAvailableInMenu() && !NaConfig.INSTANCE.llmIsDefaultProvider();
+                    boolean showTranslate = NekoConfig.showTranslate.Bool() || (NaConfig.INSTANCE.getShowTranslateMessageLLM().Bool() && NaConfig.INSTANCE.llmIsDefaultProvider());
+                    boolean showTranslateLLM = NaConfig.INSTANCE.getShowTranslateMessageLLM().Bool() && NaConfig.INSTANCE.isLLMTranslatorAvailable() && !NaConfig.INSTANCE.llmIsDefaultProvider();
                     boolean isTranslatableMessage = !selectedObject.isAnimatedEmoji() && !selectedObject.isDice() && (messageObject != null || docsWithMessages);
                     if ((showTranslate || showTranslateLLM) && isTranslatableMessage) {
                         String fromLang = null;
@@ -47230,7 +47254,7 @@ public class ChatActivity extends BaseFragment implements
                     }
                 }
                 boolean showTranslate = NekoConfig.showTranslate.Bool();
-                boolean showTranslateLLM = NaConfig.INSTANCE.isLLMTranslatorAvailableInMenu() && !NaConfig.INSTANCE.llmIsDefaultProvider();
+                boolean showTranslateLLM = NaConfig.INSTANCE.getShowTranslateMessageLLM().Bool() && NaConfig.INSTANCE.isLLMTranslatorAvailable() && !NaConfig.INSTANCE.llmIsDefaultProvider();
                 boolean isTranslatingDialog = isTranslatingDialog(selectedObject);
                 if ((showTranslate || showTranslateLLM) && (selectedObject.isOutOwner() || !isTranslatingDialog)) {
                     if (messageObject != null || docsWithMessages) {

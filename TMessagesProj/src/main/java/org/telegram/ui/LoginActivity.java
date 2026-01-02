@@ -3409,9 +3409,9 @@ public class LoginActivity extends BaseFragment implements NotificationCenter.No
                         } else if (error.text.contains("PHONE_NUMBER_INVALID")) {
                             needShowInvalidAlert(LoginActivity.this, phone, phoneInputData, false);
                         } else if (error.text.contains("PHONE_PASSWORD_FLOOD")) {
-                            needShowAlert(getString(R.string.RestorePasswordNoEmailTitle), getString("FloodWait", R.string.FloodWait));
+                            needShowAlert(getString(R.string.RestorePasswordNoEmailTitle), getString(R.string.FloodWait) + "\n" + error.text);
                         } else if (error.text.contains("PHONE_NUMBER_FLOOD")) {
-                            needShowAlert(getString(R.string.RestorePasswordNoEmailTitle), getString("PhoneNumberFlood", R.string.PhoneNumberFlood));
+                            needShowAlert(getString(R.string.RestorePasswordNoEmailTitle), getString(R.string.PhoneNumberFlood) + "\n" + error.text);
                         } else if (error.text.contains("PHONE_NUMBER_BANNED")) {
                                 needShowInvalidAlert(LoginActivity.this, phone, phoneInputData, true);
                         } else if (error.text.contains("PHONE_CODE_EMPTY") || error.text.contains("PHONE_CODE_INVALID")) {
@@ -3421,7 +3421,7 @@ public class LoginActivity extends BaseFragment implements NotificationCenter.No
                             setPage(VIEW_PHONE_INPUT, true, null, true);
                             needShowAlert(getString(R.string.RestorePasswordNoEmailTitle), getString("CodeExpired", R.string.CodeExpired));
                         } else if (error.text.startsWith("FLOOD_WAIT")) {
-                            needShowAlert(getString(R.string.RestorePasswordNoEmailTitle), getString("FloodWait", R.string.FloodWait));
+                            needShowAlert(getString(R.string.RestorePasswordNoEmailTitle), getString(R.string.FloodWait) + "\n" + error.text);
                         } else if (error.code != -1000) {
                             AlertsCreator.processError(currentAccount, error, LoginActivity.this, req, phoneInputData.phoneNumber);
                         }
@@ -4407,7 +4407,7 @@ public class LoginActivity extends BaseFragment implements NotificationCenter.No
                             setPage(VIEW_PHONE_INPUT, true, null, true);
                             needShowAlert(getString(R.string.RestorePasswordNoEmailTitle), getString(R.string.CodeExpired));
                         } else if (error.text.startsWith("FLOOD_WAIT")) {
-                            needShowAlert(getString(R.string.RestorePasswordNoEmailTitle), getString(R.string.FloodWait));
+                            needShowAlert(getString(R.string.RestorePasswordNoEmailTitle), getString(R.string.FloodWait) + "\n" + error.text);
                         } else if (error.code != -1000) {
                             needShowAlert(getString(R.string.RestorePasswordNoEmailTitle), getString(R.string.ErrorOccurred) + "\n" + error.text);
                         }
@@ -5004,7 +5004,7 @@ public class LoginActivity extends BaseFragment implements NotificationCenter.No
                                     setPage(VIEW_PHONE_INPUT, true, null, true);
                                     needShowAlert(getString(R.string.RestorePasswordNoEmailTitle), getString("CodeExpired", R.string.CodeExpired));
                                 } else if (error.text.startsWith("FLOOD_WAIT")) {
-                                    needShowAlert(getString(R.string.RestorePasswordNoEmailTitle), getString("FloodWait", R.string.FloodWait));
+                                    needShowAlert(getString(R.string.RestorePasswordNoEmailTitle), getString(R.string.FloodWait) + "\n" + error.text);
                                 } else {
                                     needShowAlert(getString(R.string.RestorePasswordNoEmailTitle), getString("ErrorOccurred", R.string.ErrorOccurred) + "\n" + error.text);
                                 }
@@ -5178,7 +5178,7 @@ public class LoginActivity extends BaseFragment implements NotificationCenter.No
                                         setPage(VIEW_PHONE_INPUT, true, null, true);
                                         needShowAlert(getString(R.string.RestorePasswordNoEmailTitle), getString("CodeExpired", R.string.CodeExpired));
                                     } else if (error.text.startsWith("FLOOD_WAIT")) {
-                                        needShowAlert(getString(R.string.RestorePasswordNoEmailTitle), getString("FloodWait", R.string.FloodWait));
+                                        needShowAlert(getString(R.string.RestorePasswordNoEmailTitle), getString(R.string.FloodWait) + "\n" + error.text);
                                     } else {
                                         needShowAlert(getString(R.string.RestorePasswordNoEmailTitle), getString("ErrorOccurred", R.string.ErrorOccurred) + "\n" + error.text);
                                     }
@@ -6378,9 +6378,9 @@ public class LoginActivity extends BaseFragment implements NotificationCenter.No
                     } else if (error.text.contains("EMAIL_NOT_ALLOWED")) {
                         needShowAlert(getString(R.string.RestorePasswordNoEmailTitle), getString(R.string.EmailNotAllowed));
                     } else if (error.text.contains("PHONE_PASSWORD_FLOOD")) {
-                        needShowAlert(getString(R.string.RestorePasswordNoEmailTitle), getString("FloodWait", R.string.FloodWait));
+                        needShowAlert(getString(R.string.RestorePasswordNoEmailTitle), getString(R.string.FloodWait) + "\n" + error.text);
                     } else if (error.text.contains("PHONE_NUMBER_FLOOD")) {
-                        needShowAlert(getString(R.string.RestorePasswordNoEmailTitle), getString("PhoneNumberFlood", R.string.PhoneNumberFlood));
+                        needShowAlert(getString(R.string.RestorePasswordNoEmailTitle), getString(R.string.PhoneNumberFlood) + "\n" + error.text);
                     } else if (error.text.contains("PHONE_CODE_EMPTY") || error.text.contains("PHONE_CODE_INVALID")) {
                         needShowAlert(getString(R.string.RestorePasswordNoEmailTitle), getString("InvalidCode", R.string.InvalidCode));
                     } else if (error.text.contains("PHONE_CODE_EXPIRED")) {
@@ -6388,7 +6388,7 @@ public class LoginActivity extends BaseFragment implements NotificationCenter.No
                         setPage(VIEW_PHONE_INPUT, true, null, true);
                         needShowAlert(getString(R.string.RestorePasswordNoEmailTitle), getString("CodeExpired", R.string.CodeExpired));
                     } else if (error.text.startsWith("FLOOD_WAIT")) {
-                        needShowAlert(getString(R.string.RestorePasswordNoEmailTitle), getString("FloodWait", R.string.FloodWait));
+                        needShowAlert(getString(R.string.RestorePasswordNoEmailTitle), getString(R.string.FloodWait) + "\n" + error.text);
                     } else if (error.code != -1000) {
                         AlertsCreator.processError(currentAccount, error, LoginActivity.this, req, requestPhone);
                     }
@@ -7150,7 +7150,7 @@ public class LoginActivity extends BaseFragment implements NotificationCenter.No
                             setPage(VIEW_PHONE_INPUT, true, null, true);
                             needShowAlert(getString(R.string.RestorePasswordNoEmailTitle), getString("CodeExpired", R.string.CodeExpired));
                         } else if (error.text.startsWith("FLOOD_WAIT")) {
-                            needShowAlert(getString(R.string.RestorePasswordNoEmailTitle), getString("FloodWait", R.string.FloodWait));
+                            needShowAlert(getString(R.string.RestorePasswordNoEmailTitle), getString(R.string.FloodWait) + "\n" + error.text);
                         } else {
                             needShowAlert(getString(R.string.RestorePasswordNoEmailTitle), getString("ErrorOccurred", R.string.ErrorOccurred) + "\n" + error.text);
                         }
@@ -8732,7 +8732,7 @@ public class LoginActivity extends BaseFragment implements NotificationCenter.No
                     }
                 }), ConnectionsManager.RequestFlagFailOnServerErrors | ConnectionsManager.RequestFlagWithoutLogin);
             } else if (errorText.startsWith("FLOOD_WAIT")) {
-                needShowAlert(LocaleController.getString(R.string.NagramX), LocaleController.getString(R.string.FloodWait));
+                needShowAlert(LocaleController.getString(R.string.NagramX), getString(R.string.FloodWait) + "\n" + errorText);
             } else {
                 needShowAlert(LocaleController.getString(R.string.NagramX), errorText);
             }
@@ -9583,7 +9583,7 @@ public class LoginActivity extends BaseFragment implements NotificationCenter.No
                                 setPage(VIEW_PHONE_INPUT, true, null, true);
                                 needShowAlert(getString(R.string.RestorePasswordNoEmailTitle), getString(R.string.CodeExpired));
                             } else if (error.text.startsWith("FLOOD_WAIT")) {
-                                needShowAlert(getString(R.string.RestorePasswordNoEmailTitle), getString(R.string.FloodWait));
+                                needShowAlert(getString(R.string.RestorePasswordNoEmailTitle), getString(R.string.FloodWait) + "\n" + error.text);
                             } else if (error.code != -1000) {
                                 needShowAlert(getString(R.string.RestorePasswordNoEmailTitle), getString(R.string.ErrorOccurred) + "\n" + error.text);
                             }
@@ -9901,7 +9901,7 @@ public class LoginActivity extends BaseFragment implements NotificationCenter.No
                                 setPage(VIEW_PHONE_INPUT, true, null, true);
                                 needShowAlert(getString(R.string.RestorePasswordNoEmailTitle), getString("CodeExpired", R.string.CodeExpired));
                             } else if (error.text.startsWith("FLOOD_WAIT")) {
-                                needShowAlert(getString(R.string.RestorePasswordNoEmailTitle), getString("FloodWait", R.string.FloodWait));
+                                needShowAlert(getString(R.string.RestorePasswordNoEmailTitle), getString(R.string.FloodWait) + "\n" + error.text);
                             } else {
                                 needShowAlert(getString(R.string.RestorePasswordNoEmailTitle), getString("ErrorOccurred", R.string.ErrorOccurred) + "\n" + error.text);
                             }
@@ -9972,7 +9972,7 @@ public class LoginActivity extends BaseFragment implements NotificationCenter.No
                             setPage(VIEW_PHONE_INPUT, true, null, true);
                             needShowAlert(getString(R.string.RestorePasswordNoEmailTitle), getString(R.string.CodeExpired));
                         } else if (error.text.startsWith("FLOOD_WAIT")) {
-                            needShowAlert(getString(R.string.RestorePasswordNoEmailTitle), getString(R.string.FloodWait));
+                            needShowAlert(getString(R.string.RestorePasswordNoEmailTitle), getString(R.string.FloodWait) + "\n" + error.text);
                         } else if (error.code != -1000) {
                             needShowAlert(getString(R.string.RestorePasswordNoEmailTitle), getString(R.string.ErrorOccurred) + "\n" + error.text);
                         }

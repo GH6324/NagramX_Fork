@@ -154,10 +154,11 @@ public class NekoGeneralSettingsActivity extends BaseNekoXSettingsActivity {
 
     // Dialogs
     private final AbstractConfigCell headerDialogs = cellGroup.appendCell(new ConfigCellHeader(getString(R.string.DialogsSettings)));
-    private final AbstractConfigCell mediaPreviewRow = cellGroup.appendCell(new ConfigCellTextCheck(NekoConfig.mediaPreview));
-    private final AbstractConfigCell userAvatarsInMessagePreviewRow = cellGroup.appendCell(new ConfigCellTextCheck(NaConfig.INSTANCE.getUserAvatarsInMessagePreview()));
+    private final AbstractConfigCell sortByUnreadRow = cellGroup.appendCell(new ConfigCellTextCheck(NaConfig.INSTANCE.getSortByUnread()));
     private final AbstractConfigCell disableDialogsFloatingButtonRow = cellGroup.appendCell(new ConfigCellTextCheck(NaConfig.INSTANCE.getDisableDialogsFloatingButton()));
     private final AbstractConfigCell disableBotOpenButtonRow = cellGroup.appendCell(new ConfigCellTextCheck(NaConfig.INSTANCE.getDisableBotOpenButton()));
+    private final AbstractConfigCell mediaPreviewRow = cellGroup.appendCell(new ConfigCellTextCheck(NekoConfig.mediaPreview));
+    private final AbstractConfigCell userAvatarsInMessagePreviewRow = cellGroup.appendCell(new ConfigCellTextCheck(NaConfig.INSTANCE.getUserAvatarsInMessagePreview()));
     private final AbstractConfigCell dividerDialogs = cellGroup.appendCell(new ConfigCellDivider());
 
     // Appearance
@@ -171,11 +172,12 @@ public class NekoGeneralSettingsActivity extends BaseNekoXSettingsActivity {
     private final AbstractConfigCell iosSearchPanelRow = cellGroup.appendCell(new ConfigCellTextCheck(NaConfig.INSTANCE.getIosSearchPanel()));
     private final AbstractConfigCell squareFloatingActionButtonRow = cellGroup.appendCell(new ConfigCellTextCheck(NaConfig.INSTANCE.getSquareFloatingActionButton()));
     private final AbstractConfigCell typefaceRow = cellGroup.appendCell(new ConfigCellTextCheck(NekoConfig.typeface));
-    private final AbstractConfigCell transparentStatusBarRow = cellGroup.appendCell(new ConfigCellTextCheck(NekoConfig.transparentStatusBar));
-    private final AbstractConfigCell appBarShadowRow = cellGroup.appendCell(new ConfigCellTextCheck(NekoConfig.disableAppBarShadow));
     private final AbstractConfigCell hideDividers = cellGroup.appendCell(new ConfigCellTextCheck(NaConfig.INSTANCE.getHideDividers()));
+    private final AbstractConfigCell appBarShadowRow = cellGroup.appendCell(new ConfigCellTextCheck(NekoConfig.disableAppBarShadow));
+    private final AbstractConfigCell transparentStatusBarRow = cellGroup.appendCell(new ConfigCellTextCheck(NekoConfig.transparentStatusBar));
     private final AbstractConfigCell newYearRow = cellGroup.appendCell(new ConfigCellTextCheck(NekoConfig.newYear));
     private final AbstractConfigCell alwaysShowDownloadIconRow = cellGroup.appendCell(new ConfigCellTextCheck(NaConfig.INSTANCE.getAlwaysShowDownloadIcon()));
+    private final AbstractConfigCell showStickersInTopLevelRow = cellGroup.appendCell(new ConfigCellTextCheck(NaConfig.INSTANCE.getShowStickersRowToplevel()));
     private final AbstractConfigCell hidePremiumSectionRow = cellGroup.appendCell(new ConfigCellTextCheck(NaConfig.INSTANCE.getHidePremiumSection()));
     private final AbstractConfigCell hideHelpSectionRow = cellGroup.appendCell(new ConfigCellTextCheck(NaConfig.INSTANCE.getHideHelpSection()));
     private final AbstractConfigCell disableAvatarBlurRow = cellGroup.appendCell(new ConfigCellTextCheck(NaConfig.INSTANCE.getDisableAvatarBlur()));
@@ -222,29 +224,30 @@ public class NekoGeneralSettingsActivity extends BaseNekoXSettingsActivity {
             getString(R.string.ChatsOnly)
     }, null));
     private final AbstractConfigCell drawerElementsRow = cellGroup.appendCell(new ConfigCellTextCheckIcon(null, "DrawerElements", null, R.drawable.menu_newfilter, false, () ->
-        showDialog(showConfigMenuWithIconAlert(this, R.string.DrawerElements, new ArrayList<>() {{
-            add(new ConfigCellTextCheckIcon(NaConfig.INSTANCE.getDrawerItemMyProfile(), getString(R.string.MyProfile), R.drawable.left_status_profile));
-            add(new ConfigCellTextCheckIcon(NaConfig.INSTANCE.getDrawerItemSetEmojiStatus(), getString(R.string.SetEmojiStatus), R.drawable.msg_status_set, true));
-            add(new ConfigCellTextCheckIcon(NaConfig.INSTANCE.getDrawerItemArchivedChats(), getString(R.string.ArchivedChats), R.drawable.msg_archive, true));
-            add(new ConfigCellTextCheckIcon(NaConfig.INSTANCE.getDrawerItemNewGroup(), getString(R.string.NewGroup), R.drawable.msg_groups));
-            add(new ConfigCellTextCheckIcon(NaConfig.INSTANCE.getDrawerItemNewChannel(), getString(R.string.NewChannel), R.drawable.msg_channel));
-            add(new ConfigCellTextCheckIcon(NaConfig.INSTANCE.getDrawerItemContacts(), getString(R.string.Contacts), R.drawable.msg_contacts));
-            add(new ConfigCellTextCheckIcon(NaConfig.INSTANCE.getDrawerItemCalls(), getString(R.string.Calls), R.drawable.msg_calls));
-            add(new ConfigCellTextCheckIcon(NaConfig.INSTANCE.getDrawerItemSaved(), getString(R.string.SavedMessages), R.drawable.msg_saved));
-            add(new ConfigCellTextCheckIcon(NaConfig.INSTANCE.getDrawerItemSettings(), getString(R.string.Settings), R.drawable.msg_settings_old, true));
-            add(new ConfigCellTextCheckIcon(NaConfig.INSTANCE.getDrawerItemNSettings(), getString(R.string.NekoSettings), R.drawable.nagramx_outline));
-            add(new ConfigCellTextCheckIcon(NaConfig.INSTANCE.getDrawerItemBrowser(), getString(R.string.InappBrowser), R.drawable.web_browser));
-            add(new ConfigCellTextCheckIcon(NaConfig.INSTANCE.getDrawerItemQrLogin(), getString(R.string.ImportLogin), R.drawable.msg_qrcode));
-            add(new ConfigCellTextCheckIcon(NaConfig.INSTANCE.getDrawerItemSessions(), getString(R.string.Devices), R.drawable.msg2_devices, true));
-            add(new ConfigCellTextCheckIcon(NaConfig.INSTANCE.getDrawerItemRestartApp(), getString(R.string.RestartApp), R.drawable.msg_retry));
-        }}))
+            showDialog(showConfigMenuWithIconAlert(this, R.string.DrawerElements, new ArrayList<>() {{
+                add(new ConfigCellTextCheckIcon(NaConfig.INSTANCE.getDrawerItemMyProfile(), getString(R.string.MyProfile), R.drawable.left_status_profile));
+                add(new ConfigCellTextCheckIcon(NaConfig.INSTANCE.getDrawerItemSetEmojiStatus(), getString(R.string.SetEmojiStatus), R.drawable.msg_status_set, true));
+                add(new ConfigCellTextCheckIcon(NaConfig.INSTANCE.getDrawerItemArchivedChats(), getString(R.string.ArchivedChats), R.drawable.msg_archive, true));
+                add(new ConfigCellTextCheckIcon(NaConfig.INSTANCE.getDrawerItemNewGroup(), getString(R.string.NewGroup), R.drawable.msg_groups));
+                add(new ConfigCellTextCheckIcon(NaConfig.INSTANCE.getDrawerItemNewChannel(), getString(R.string.NewChannel), R.drawable.msg_channel));
+                add(new ConfigCellTextCheckIcon(NaConfig.INSTANCE.getDrawerItemContacts(), getString(R.string.Contacts), R.drawable.msg_contacts));
+                add(new ConfigCellTextCheckIcon(NaConfig.INSTANCE.getDrawerItemCalls(), getString(R.string.Calls), R.drawable.msg_calls));
+                add(new ConfigCellTextCheckIcon(NaConfig.INSTANCE.getDrawerItemSaved(), getString(R.string.SavedMessages), R.drawable.msg_saved));
+                add(new ConfigCellTextCheckIcon(NaConfig.INSTANCE.getShowRecentChatsInDrawer(), getString(R.string.RecentChats), R.drawable.msg_recent, true));
+                add(new ConfigCellTextCheckIcon(NaConfig.INSTANCE.getDrawerItemSettings(), getString(R.string.Settings), R.drawable.msg_settings_old, true));
+                add(new ConfigCellTextCheckIcon(NaConfig.INSTANCE.getDrawerItemNSettings(), getString(R.string.NekoSettings), R.drawable.nagramx_outline));
+                add(new ConfigCellTextCheckIcon(NaConfig.INSTANCE.getDrawerItemBrowser(), getString(R.string.InappBrowser), R.drawable.web_browser));
+                add(new ConfigCellTextCheckIcon(NaConfig.INSTANCE.getDrawerItemQrLogin(), getString(R.string.ImportLogin), R.drawable.msg_qrcode));
+                add(new ConfigCellTextCheckIcon(NaConfig.INSTANCE.getDrawerItemSessions(), getString(R.string.Devices), R.drawable.msg2_devices, true));
+                add(new ConfigCellTextCheckIcon(NaConfig.INSTANCE.getDrawerItemRestartApp(), getString(R.string.RestartApp), R.drawable.msg_retry));
+            }}))
     ));
     private final AbstractConfigCell dividerAppearance = cellGroup.appendCell(new ConfigCellDivider());
 
     // Privacy
     private final AbstractConfigCell headerPrivacy = cellGroup.appendCell(new ConfigCellHeader(getString(R.string.PrivacyTitle)));
-    private final AbstractConfigCell disableSystemAccountRow = cellGroup.appendCell(new ConfigCellTextCheck(NekoConfig.disableSystemAccount));
     private final AbstractConfigCell disableAutoWebLoginRow = cellGroup.appendCell(new ConfigCellTextCheck(NaConfig.INSTANCE.getDisableAutoWebLogin()));
+    private final AbstractConfigCell disableSystemAccountRow = cellGroup.appendCell(new ConfigCellTextCheck(NekoConfig.disableSystemAccount));
     private final AbstractConfigCell disableCrashlyticsCollectionRow = cellGroup.appendCell(new ConfigCellTextCheck(NaConfig.INSTANCE.getDisableCrashlyticsCollection()));
     private final AbstractConfigCell dividerPrivacy = cellGroup.appendCell(new ConfigCellDivider());
 
@@ -256,12 +259,11 @@ public class NekoGeneralSettingsActivity extends BaseNekoXSettingsActivity {
     private final AbstractConfigCell customSavePathRow = cellGroup.appendCell(new ConfigCellTextInput(null, NekoConfig.customSavePath,
             getString(R.string.customSavePathHint), null,
             (input) -> input.matches("^[A-za-z0-9.]{1,255}$") || input.isEmpty() ? input : (String) NekoConfig.customSavePath.defaultValue));
-    private final AbstractConfigCell customTitleUserNameRow = cellGroup.appendCell(new ConfigCellTextCheck(NaConfig.INSTANCE.getCustomTitleUserName()));
     private final AbstractConfigCell folderNameAsTitleRow = cellGroup.appendCell(new ConfigCellTextCheck(NaConfig.INSTANCE.getFolderNameAsTitle()));
-    private final AbstractConfigCell preferCommonGroupsTabRow = cellGroup.appendCell(new ConfigCellTextCheck(NaConfig.INSTANCE.getPreferCommonGroupsTab(), getString(R.string.PreferCommonGroupsTabNotice)));
-    private final AbstractConfigCell autoPauseVideoRow = cellGroup.appendCell(new ConfigCellTextCheck(NekoConfig.autoPauseVideo, getString(R.string.AutoPauseVideoAbout)));
+    private final AbstractConfigCell customTitleUserNameRow = cellGroup.appendCell(new ConfigCellTextCheck(NaConfig.INSTANCE.getCustomTitleUserName()));
     private final AbstractConfigCell disableNumberRoundingRow = cellGroup.appendCell(new ConfigCellTextCheck(NekoConfig.disableNumberRounding, "4.8K -> 4777"));
     private final AbstractConfigCell useCamera2ApiRow = cellGroup.appendCell(new ConfigCellTextCheck(NaConfig.INSTANCE.getUseCamera2Api()));
+    private final AbstractConfigCell preferCommonGroupsTabRow = cellGroup.appendCell(new ConfigCellTextCheck(NaConfig.INSTANCE.getPreferCommonGroupsTab(), getString(R.string.PreferCommonGroupsTabNotice)));
     private final AbstractConfigCell usePersianCalendarRow = cellGroup.appendCell(new ConfigCellTextCheck(NekoConfig.usePersianCalendar, getString(R.string.UsePersianCalendarInfo)));
     private final AbstractConfigCell displayPersianCalendarByLatinRow = cellGroup.appendCell(new ConfigCellTextCheck(NekoConfig.displayPersianCalendarByLatin));
     private final AbstractConfigCell showIdAndDcRow = cellGroup.appendCell(new ConfigCellSelectBox("ShowIdAndDc", NaConfig.INSTANCE.getIdDcType(), new String[]{
@@ -305,29 +307,13 @@ public class NekoGeneralSettingsActivity extends BaseNekoXSettingsActivity {
         wasCentered = isCentered();
         wasCenteredAtBeginning = wasCentered;
 
-        if (NekoConfig.useOSMDroidMap.Bool()) {
-            cellGroup.rows.remove(mapDriftingFixForGoogleMapsRow);
-        }
-        if (NaConfig.INSTANCE.getCustomTitleUserName().Bool()) {
-            cellGroup.rows.remove(customTitleRow);
-        }
-        if (NekoConfig.largeAvatarInDrawer.Int() == 0) {
-            cellGroup.rows.remove(avatarBackgroundBlurRow);
-            cellGroup.rows.remove(avatarBackgroundDarkenRow);
-        }
-        if (NaConfig.INSTANCE.getPushServiceType().Int() != 0) {
-            cellGroup.rows.remove(pushServiceTypeInAppDialogRow);
-        }
-        if (NaConfig.INSTANCE.getHideArchive().Bool()) {
-            cellGroup.rows.remove(openArchiveOnPullRow);
-        }
-        if (!NekoConfig.forceBlurInChat.Bool()) {
-            cellGroup.rows.remove(headerChatBlur);
-            cellGroup.rows.remove(chatBlurAlphaValueRow);
-        }
-
-        checkProfileConfigCellRows();
-        checkCustomDoHCellRows();
+        checkProfileConfigRows();
+        checkCustomDoHRows();
+        checkMapDriftingFixRows();
+        checkCustomTitleRows();
+        checkPushServiceTypeRows();
+        checkOpenArchiveOnPullRows();
+        checkForceBlurRows();
         addRowsToMap(cellGroup);
     }
 
@@ -356,9 +342,6 @@ public class NekoGeneralSettingsActivity extends BaseNekoXSettingsActivity {
 
         listAdapter = new ListAdapter(context);
 
-        // Before listAdapter
-        setCanNotChange();
-
         listView.setAdapter(listAdapter);
 
         // Fragment: Set OnClick Callbacks
@@ -370,14 +353,15 @@ public class NekoGeneralSettingsActivity extends BaseNekoXSettingsActivity {
                 ((ConfigCellSelectBox) a).onClick(view);
             } else if (a instanceof ConfigCellTextInput) {
                 ((ConfigCellTextInput) a).onClick();
-            } else if  (a instanceof ConfigCellTextInput2) {
+            } else if (a instanceof ConfigCellTextInput2) {
                 ((ConfigCellTextInput2) a).onClick();
             } else if (a instanceof ConfigCellTextDetail) {
                 RecyclerListView.OnItemClickListener o = ((ConfigCellTextDetail) a).onItemClickListener;
                 if (o != null) {
                     try {
                         o.onItemClick(view, position);
-                    } catch (Exception ignored) {}
+                    } catch (Exception ignored) {
+                    }
                 }
             } else if (a instanceof ConfigCellCustom) { // Custom OnClick
                 if (position == cellGroup.rows.indexOf(nameOrderRow)) {
@@ -426,7 +410,7 @@ public class NekoGeneralSettingsActivity extends BaseNekoXSettingsActivity {
             } else if (key.equals(NekoConfig.largeAvatarInDrawer.getKey())) {
                 getNotificationCenter().postNotificationName(NotificationCenter.mainUserInfoChanged);
                 TransitionManager.beginDelayedTransition(profilePreviewCell);
-                checkProfileConfigCellRows();
+                checkProfileConfigRows();
             } else if (key.equals(NekoConfig.avatarBackgroundBlur.getKey())) {
                 getNotificationCenter().postNotificationName(NotificationCenter.mainUserInfoChanged);
                 listAdapter.notifyItemChanged(cellGroup.rows.indexOf(profilePreviewRow));
@@ -437,58 +421,18 @@ public class NekoGeneralSettingsActivity extends BaseNekoXSettingsActivity {
                 ActionBarLayout.headerShadowDrawable = (boolean) newValue ? null : parentLayout.getParentActivity().getResources().getDrawable(R.drawable.header_shadow).mutate();
                 parentLayout.rebuildFragments(INavigationLayout.REBUILD_FLAG_REBUILD_LAST | INavigationLayout.REBUILD_FLAG_REBUILD_ONLY_LAST);
             } else if (key.equals(NekoConfig.forceBlurInChat.getKey())) {
-                boolean enabled = (Boolean) newValue;
-                // Update the cell's own enabled state. This is the main fix.
-                ((ConfigCellCustom) chatBlurAlphaValueRow).enabled = enabled;
-
-                if (enabled) {
-                    if (!cellGroup.rows.contains(headerChatBlur)) {
-                        final int index = cellGroup.rows.indexOf(forceBlurInChatRow) + 1;
-                        cellGroup.rows.add(index, headerChatBlur);
-                        cellGroup.rows.add(index + 1, chatBlurAlphaValueRow);
-                        listAdapter.notifyItemRangeInserted(index, 2);
-                    }
-                } else {
-                    if (cellGroup.rows.contains(headerChatBlur)) {
-                        final int index = cellGroup.rows.indexOf(headerChatBlur);
-                        cellGroup.rows.remove(headerChatBlur);
-                        cellGroup.rows.remove(chatBlurAlphaValueRow);
-                        listAdapter.notifyItemRangeRemoved(index, 2);
-                    }
-                }
-                // Also update the seekbar view directly if it already exists.
-                if (chatBlurAlphaSeekbar != null) {
-                    chatBlurAlphaSeekbar.setEnabled(enabled);
-                }
+                checkForceBlurRows();
             } else if (key.equals(NekoConfig.useOSMDroidMap.getKey())) {
-                boolean enabled = (Boolean) newValue;
-                if (enabled) {
-                    if (cellGroup.rows.contains(mapDriftingFixForGoogleMapsRow)) {
-                        final int index = cellGroup.rows.indexOf(mapDriftingFixForGoogleMapsRow);
-                        cellGroup.rows.remove(mapDriftingFixForGoogleMapsRow);
-                        listAdapter.notifyItemRemoved(index);
-                    }
-                } else {
-                    if (!cellGroup.rows.contains(mapDriftingFixForGoogleMapsRow)) {
-                        final int index = cellGroup.rows.indexOf(useOSMDroidMapRow) + 1;
-                        cellGroup.rows.add(index, mapDriftingFixForGoogleMapsRow);
-                        listAdapter.notifyItemInserted(index);
-                    }
-                }
+                checkMapDriftingFixRows();
             } else if (key.equals(NaConfig.INSTANCE.getPushServiceType().getKey())) {
                 if ((int) newValue == 0) {
                     AndroidUtil.setPushService(false);
-                    ((ConfigCellTextCheck) pushServiceTypeInAppDialogRow).setEnabledAndUpdateState(true);
                     ApplicationLoader.startPushService();
                 } else {
                     NaConfig.INSTANCE.getPushServiceTypeInAppDialog().setConfigBool(false);
-                    if (cellGroup.rows.contains(pushServiceTypeInAppDialogRow)) {
-                        final int index = cellGroup.rows.indexOf(pushServiceTypeInAppDialogRow);
-                        cellGroup.rows.remove(pushServiceTypeInAppDialogRow);
-                        listAdapter.notifyItemRemoved(index);
-                    }
                     AndroidUtilities.runOnUIThread(() -> context.stopService(new Intent(context, NotificationsService.class)));
                 }
+                checkPushServiceTypeRows();
                 tooltip.showWithAction(0, UndoView.ACTION_NEED_RESTART, null, null);
             } else if (key.equals(NaConfig.INSTANCE.getPushServiceTypeInAppDialog().getKey())) {
                 ApplicationLoader.applicationContext.stopService(new Intent(ApplicationLoader.applicationContext, NotificationsService.class));
@@ -498,10 +442,11 @@ public class NekoGeneralSettingsActivity extends BaseNekoXSettingsActivity {
             } else if (key.equals(NaConfig.INSTANCE.getDisableCrashlyticsCollection().getKey())) {
                 tooltip.showWithAction(0, UndoView.ACTION_NEED_RESTART, null, null);
             } else if (key.equals(NaConfig.INSTANCE.getCustomTitleUserName().getKey())) {
-                boolean enabled = (Boolean) newValue;
-                ((ConfigCellTextInput) customTitleRow).setEnabled(!enabled);
-                listAdapter.notifyItemChanged(cellGroup.rows.indexOf(customTitleRow));
+                checkCustomTitleRows();
                 tooltip.showWithAction(0, UndoView.ACTION_NEED_RESTART, null, null);
+            } else if (key.equals(NaConfig.INSTANCE.getSortByUnread().getKey())) {
+                getMessagesController().sortDialogs(null);
+                getNotificationCenter().postNotificationName(NotificationCenter.dialogsNeedReload, true);
             } else if (key.equals(NaConfig.INSTANCE.getIgnoreUnreadCount().getKey())) {
                 tooltip.showWithAction(0, UndoView.ACTION_NEED_RESTART, null, null);
             } else if (key.equals(NekoConfig.useProxyItem.getKey())) {
@@ -515,8 +460,7 @@ public class NekoGeneralSettingsActivity extends BaseNekoXSettingsActivity {
                 NaConfig.INSTANCE.getCenterActionBarTitle().setConfigBool(value != 0);
                 animateActionBarUpdate(this);
             } else if (key.equals(NaConfig.INSTANCE.getHideArchive().getKey())) {
-                setCanNotChange();
-                listAdapter.notifyItemChanged(cellGroup.rows.indexOf(openArchiveOnPullRow));
+                checkOpenArchiveOnPullRows();
                 tooltip.showWithAction(0, UndoView.ACTION_NEED_RESTART, null, null);
             } else if (key.equals(NaConfig.INSTANCE.getDisableBotOpenButton().getKey())) {
                 tooltip.showWithAction(0, UndoView.ACTION_NEED_RESTART, null, null);
@@ -531,7 +475,7 @@ public class NekoGeneralSettingsActivity extends BaseNekoXSettingsActivity {
             } else if (key.equals(NaConfig.INSTANCE.getIosSearchPanel().getKey())) {
                 tooltip.showWithAction(0, UndoView.ACTION_NEED_RESTART, null, null);
             } else if (key.equals(NekoConfig.dnsType.getKey())) {
-                checkCustomDoHCellRows();
+                checkCustomDoHRows();
                 tooltip.showWithAction(0, UndoView.ACTION_NEED_RESTART, null, null);
             } else if (key.equals(NekoConfig.typeface.getKey())) {
                 tooltip.showWithAction(0, UndoView.ACTION_NEED_RESTART, null, null);
@@ -540,7 +484,7 @@ public class NekoGeneralSettingsActivity extends BaseNekoXSettingsActivity {
             }
         };
 
-        //Cells: Set ListAdapter
+        // Cells: Set ListAdapter
         cellGroup.setListAdapter(listView, listAdapter);
 
         return superView;
@@ -634,7 +578,7 @@ public class NekoGeneralSettingsActivity extends BaseNekoXSettingsActivity {
         return themeDescriptions;
     }
 
-    //impl ListAdapter
+    // impl ListAdapter
     private class ListAdapter extends RecyclerListView.SelectionAdapter {
 
         private final Context mContext;
@@ -719,27 +663,12 @@ public class NekoGeneralSettingsActivity extends BaseNekoXSettingsActivity {
                     view.setBackgroundColor(getThemedColor(Theme.key_windowBackgroundWhite));
                     break;
             }
-            //noinspection ConstantConditions
+            // noinspection ConstantConditions
             view.setLayoutParams(new RecyclerView.LayoutParams(RecyclerView.LayoutParams.MATCH_PARENT, RecyclerView.LayoutParams.WRAP_CONTENT));
             return new RecyclerListView.Holder(view);
         }
     }
 
-    private void setCanNotChange() {
-        if (NekoConfig.useOSMDroidMap.Bool())
-            ((ConfigCellTextCheck) mapDriftingFixForGoogleMapsRow).setEnabled(false);
-
-        if (NaConfig.INSTANCE.getCustomTitleUserName().Bool())
-            ((ConfigCellTextInput) customTitleRow).setEnabled(false);
-
-        boolean enabled;
-
-        enabled = NaConfig.INSTANCE.getPushServiceType().Int() == 0;
-        ((ConfigCellTextCheck) pushServiceTypeInAppDialogRow).setEnabled(enabled);
-
-        enabled = NaConfig.INSTANCE.getHideArchive().Bool();
-        ((ConfigCellTextCheck) openArchiveOnPullRow).setEnabled(!enabled);
-    }
     private static class ChatBlurAlphaSeekBar extends FrameLayout {
 
         private final SeekBarView sizeBar;
@@ -796,7 +725,7 @@ public class NekoGeneralSettingsActivity extends BaseNekoXSettingsActivity {
         }
     }
 
-    private void checkProfileConfigCellRows() {
+    private void checkProfileConfigRows() {
         int backgroundType = NekoConfig.largeAvatarInDrawer.Int();
         boolean useAvatar = backgroundType == NekoConfig.DRAWER_BACKGROUND_AVATAR || backgroundType == NekoConfig.DRAWER_BACKGROUND_BIG_AVATAR;
         if (listAdapter == null) {
@@ -831,7 +760,7 @@ public class NekoGeneralSettingsActivity extends BaseNekoXSettingsActivity {
         listAdapter.notifyItemChanged(cellGroup.rows.indexOf(profilePreviewRow));
     }
 
-    private void checkCustomDoHCellRows() {
+    private void checkCustomDoHRows() {
         boolean useDoH = NekoConfig.dnsType.Int() == NekoConfig.DNS_TYPE_CUSTOM_DOH;
         if (listAdapter == null) {
             if (!useDoH) {
@@ -851,6 +780,149 @@ public class NekoGeneralSettingsActivity extends BaseNekoXSettingsActivity {
                 cellGroup.rows.remove(customDoHRow);
                 listAdapter.notifyItemRemoved(customDoHRowIndex);
             }
+        }
+    }
+
+    private void checkMapDriftingFixRows() {
+        boolean useOSMDroid = NekoConfig.useOSMDroidMap.Bool();
+        if (listAdapter == null) {
+            if (useOSMDroid) {
+                cellGroup.rows.remove(mapDriftingFixForGoogleMapsRow);
+            }
+            return;
+        }
+        if (!useOSMDroid) {
+            final int index = cellGroup.rows.indexOf(useOSMDroidMapRow);
+            if (!cellGroup.rows.contains(mapDriftingFixForGoogleMapsRow)) {
+                cellGroup.rows.add(index + 1, mapDriftingFixForGoogleMapsRow);
+                listAdapter.notifyItemInserted(index + 1);
+            }
+        } else {
+            int rowIndex = cellGroup.rows.indexOf(mapDriftingFixForGoogleMapsRow);
+            if (rowIndex != -1) {
+                cellGroup.rows.remove(mapDriftingFixForGoogleMapsRow);
+                listAdapter.notifyItemRemoved(rowIndex);
+            }
+        }
+        addRowsToMap(cellGroup);
+    }
+
+    private void checkCustomTitleRows() {
+        boolean useUserName = NaConfig.INSTANCE.getCustomTitleUserName().Bool();
+        if (listAdapter == null) {
+            if (useUserName) {
+                cellGroup.rows.remove(customTitleRow);
+            }
+            return;
+        }
+        if (!useUserName) {
+            final int index = cellGroup.rows.indexOf(headerGeneral);
+            if (!cellGroup.rows.contains(customTitleRow)) {
+                cellGroup.rows.add(index + 1, customTitleRow);
+                listAdapter.notifyItemInserted(index + 1);
+            }
+        } else {
+            int rowIndex = cellGroup.rows.indexOf(customTitleRow);
+            if (rowIndex != -1) {
+                cellGroup.rows.remove(customTitleRow);
+                listAdapter.notifyItemRemoved(rowIndex);
+            }
+        }
+        addRowsToMap(cellGroup);
+    }
+
+    private void checkPushServiceTypeRows() {
+        boolean useInApp = NaConfig.INSTANCE.getPushServiceType().Int() == 0;
+        boolean useUnified = NaConfig.INSTANCE.getPushServiceType().Int() == 2;
+        if (listAdapter == null) {
+            if (!useInApp) {
+                cellGroup.rows.remove(pushServiceTypeInAppDialogRow);
+            }
+            if (!useUnified) {
+                cellGroup.rows.remove(pushServiceTypeUnifiedGatewayRow);
+            }
+            return;
+        }
+        if (useInApp) {
+            final int index = cellGroup.rows.indexOf(pushServiceTypeRow);
+            if (!cellGroup.rows.contains(pushServiceTypeInAppDialogRow)) {
+                cellGroup.rows.add(index + 1, pushServiceTypeInAppDialogRow);
+                listAdapter.notifyItemInserted(index + 1);
+            }
+        } else {
+            int rowIndex = cellGroup.rows.indexOf(pushServiceTypeInAppDialogRow);
+            if (rowIndex != -1) {
+                cellGroup.rows.remove(pushServiceTypeInAppDialogRow);
+                listAdapter.notifyItemRemoved(rowIndex);
+            }
+        }
+        if (useUnified) {
+            final int index = cellGroup.rows.indexOf(disableNotificationBubblesRow);
+            if (!cellGroup.rows.contains(pushServiceTypeUnifiedGatewayRow)) {
+                cellGroup.rows.add(index + 1, pushServiceTypeUnifiedGatewayRow);
+                listAdapter.notifyItemInserted(index + 1);
+            }
+        } else {
+            int rowIndex = cellGroup.rows.indexOf(pushServiceTypeUnifiedGatewayRow);
+            if (rowIndex != -1) {
+                cellGroup.rows.remove(pushServiceTypeUnifiedGatewayRow);
+                listAdapter.notifyItemRemoved(rowIndex);
+            }
+        }
+        addRowsToMap(cellGroup);
+    }
+
+    private void checkOpenArchiveOnPullRows() {
+        boolean hideArchive = NaConfig.INSTANCE.getHideArchive().Bool();
+        if (listAdapter == null) {
+            if (hideArchive) {
+                cellGroup.rows.remove(openArchiveOnPullRow);
+            }
+            return;
+        }
+        if (!hideArchive) {
+            final int index = cellGroup.rows.indexOf(hideArchiveRow);
+            if (!cellGroup.rows.contains(openArchiveOnPullRow)) {
+                cellGroup.rows.add(index, openArchiveOnPullRow);
+                listAdapter.notifyItemInserted(index);
+            }
+        } else {
+            int rowIndex = cellGroup.rows.indexOf(openArchiveOnPullRow);
+            if (rowIndex != -1) {
+                cellGroup.rows.remove(openArchiveOnPullRow);
+                listAdapter.notifyItemRemoved(rowIndex);
+            }
+        }
+        addRowsToMap(cellGroup);
+    }
+
+    private void checkForceBlurRows() {
+        boolean enabled = NekoConfig.forceBlurInChat.Bool();
+        ((ConfigCellCustom) chatBlurAlphaValueRow).enabled = enabled;
+        if (listAdapter == null) {
+            if (!enabled) {
+                cellGroup.rows.remove(headerChatBlur);
+                cellGroup.rows.remove(chatBlurAlphaValueRow);
+            }
+            return;
+        }
+        if (enabled) {
+            if (!cellGroup.rows.contains(headerChatBlur)) {
+                final int index = cellGroup.rows.indexOf(forceBlurInChatRow) + 1;
+                cellGroup.rows.add(index, headerChatBlur);
+                cellGroup.rows.add(index + 1, chatBlurAlphaValueRow);
+                listAdapter.notifyItemRangeInserted(index, 2);
+            }
+        } else {
+            if (cellGroup.rows.contains(headerChatBlur)) {
+                final int index = cellGroup.rows.indexOf(headerChatBlur);
+                cellGroup.rows.remove(headerChatBlur);
+                cellGroup.rows.remove(chatBlurAlphaValueRow);
+                listAdapter.notifyItemRangeRemoved(index, 2);
+            }
+        }
+        if (chatBlurAlphaSeekbar != null) {
+            chatBlurAlphaSeekbar.setEnabled(enabled);
         }
     }
 

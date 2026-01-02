@@ -81,7 +81,6 @@ import kotlin.text.StringsKt;
 import tw.nekomimi.nekogram.DatacenterActivity;
 import tw.nekomimi.nekogram.DialogConfig;
 import tw.nekomimi.nekogram.NekoConfig;
-import xyz.nextalone.nagram.NaConfig;
 import tw.nekomimi.nekogram.helpers.AppRestartHelper;
 import tw.nekomimi.nekogram.helpers.ChatNameHelper;
 import tw.nekomimi.nekogram.helpers.CloudSettingsHelper;
@@ -93,6 +92,7 @@ import tw.nekomimi.nekogram.utils.AlertUtil;
 import tw.nekomimi.nekogram.utils.FileUtil;
 import tw.nekomimi.nekogram.utils.GsonUtil;
 import tw.nekomimi.nekogram.utils.ShareUtil;
+import xyz.nextalone.nagram.NaConfig;
 import xyz.nextalone.nagram.helper.BookmarksHelper;
 import xyz.nextalone.nagram.helper.LocalPeerColorHelper;
 import xyz.nextalone.nagram.helper.LocalPremiumStatusHelper;
@@ -130,6 +130,9 @@ public class NekoSettingsActivity extends BaseFragment {
         return fragmentView;
     }
 
+    /**
+     * @noinspection SizeReplaceableByIsEmpty
+     */
     private void showSettingsSearchDialog() {
         try {
             Activity parent = getParentActivity();
@@ -320,7 +323,6 @@ public class NekoSettingsActivity extends BaseFragment {
         private static final int VIEW_TYPE_TEXT = 3;
 
         public final RecyclerListView listView;
-        private final RecyclerView.Adapter listAdapter;
 
         private int nSettingsHeaderRow = -1;
         private int rowCount;
@@ -349,7 +351,7 @@ public class NekoSettingsActivity extends BaseFragment {
             listView.setVerticalScrollBarEnabled(false);
             listView.setLayoutManager(new LinearLayoutManager(context, LinearLayoutManager.VERTICAL, false));
             addView(listView, LayoutHelper.createFrame(LayoutHelper.MATCH_PARENT, LayoutHelper.MATCH_PARENT, Gravity.TOP | Gravity.LEFT));
-            listView.setAdapter(listAdapter = new RecyclerListView.SelectionAdapter() {
+            listView.setAdapter(new RecyclerListView.SelectionAdapter() {
                 @Override
                 public int getItemCount() {
                     return rowCount;
@@ -372,6 +374,7 @@ public class NekoSettingsActivity extends BaseFragment {
                             view.setBackgroundColor(Theme.getColor(Theme.key_windowBackgroundWhite));
                             break;
                     }
+                    // noinspection ConstantConditions
                     view.setLayoutParams(new RecyclerView.LayoutParams(RecyclerView.LayoutParams.MATCH_PARENT, RecyclerView.LayoutParams.WRAP_CONTENT));
                     return new RecyclerListView.Holder(view);
                 }
@@ -438,9 +441,8 @@ public class NekoSettingsActivity extends BaseFragment {
                         return VIEW_TYPE_BOTTOM;
                     } else if (position == nSettingsHeaderRow || position == otherRow || position == aboutHeaderRow) {
                         return VIEW_TYPE_HEADER;
-                    } else {
-                        return VIEW_TYPE_TEXT;
                     }
+                    return VIEW_TYPE_TEXT;
                 }
             });
             listView.setOnItemClickListener((view, position, x, y) -> {
@@ -472,7 +474,7 @@ public class NekoSettingsActivity extends BaseFragment {
                             () -> {
                                 ApplicationLoader.applicationContext.getSharedPreferences("nekocloud", Activity.MODE_PRIVATE).edit().clear().commit();
                                 ApplicationLoader.applicationContext.getSharedPreferences("nekox_config", Activity.MODE_PRIVATE).edit().clear().commit();
-                                ApplicationLoader.applicationContext.getSharedPreferences("nkmrcfg", Activity.MODE_PRIVATE).edit().clear().commit();
+                                NekoConfig.getPreferences().edit().clear().commit();
                                 AppRestartHelper.triggerRebirth(context, new Intent(context, LaunchActivity.class));
                             });
                 } else if (position == exportSettingsRow) {
@@ -663,7 +665,7 @@ public class NekoSettingsActivity extends BaseFragment {
 
     private DocumentSelectActivity getDocumentSelectActivity(Activity parent) {
         try {
-            if (Build.VERSION.SDK_INT >= 23 && parent.checkSelfPermission(Manifest.permission.READ_EXTERNAL_STORAGE) != PackageManager.PERMISSION_GRANTED) {
+            if (parent.checkSelfPermission(Manifest.permission.READ_EXTERNAL_STORAGE) != PackageManager.PERMISSION_GRANTED) {
                 parent.requestPermissions(new String[]{Manifest.permission.READ_EXTERNAL_STORAGE}, BasePermissionsActivity.REQUEST_CODE_EXTERNAL_STORAGE);
                 return null;
             }
