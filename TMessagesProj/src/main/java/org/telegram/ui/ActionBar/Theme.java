@@ -58,7 +58,7 @@ import android.hardware.SensorManager;
 import android.net.Uri;
 import android.os.Build;
 import android.os.SystemClock;
-import android.text.TextPaint;
+import com.exteragram.messenger.utils.ui.TextPaint;
 import android.text.TextUtils;
 import android.util.Base64;
 import android.util.Log;
