@@ -523,6 +523,10 @@ public class NotificationsController extends BaseController implements Notificat
     }
 
     public void removeDeletedMessagesFromNotifications(LongSparseArray<ArrayList<Integer>> deletedMessages, boolean isReactions) {
+        // keep notifications for messages that were saved as deleted
+        if (NaConfig.INSTANCE.getEnableSaveDeletedMessages().Bool() && !isReactions) {
+            return;
+        }
         ArrayList<MessageObject> popupArrayRemove = new ArrayList<>(0);
         notificationsQueue.postRunnable(() -> {
             int old_unread_count = total_unread_count;
@@ -612,6 +616,9 @@ public class NotificationsController extends BaseController implements Notificat
     }
 
     public void removeDeletedHisoryFromNotifications(LongSparseIntArray deletedMessages) {
+        if (NaConfig.INSTANCE.getEnableSaveDeletedMessages().Bool()) {
+            return;
+        }
         ArrayList<MessageObject> popupArrayRemove = new ArrayList<>(0);
         notificationsQueue.postRunnable(() -> {
             int old_unread_count = total_unread_count;

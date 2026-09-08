@@ -16989,7 +16989,9 @@ public class ChatActivity extends BaseFragment implements
         if (readNow) {
             final boolean delete = messageObject.messageOwner.ttl != 0x7FFFFFFF;
             final int ttl = messageObject.messageOwner.ttl == 0x7FFFFFFF ? 0 : messageObject.messageOwner.ttl;
-            messageObject.messageOwner.destroyTime = ttl + getConnectionsManager().getCurrentTime();
+            if (!NaConfig.INSTANCE.getEnableSaveDeletedMessages().Bool()) {
+                messageObject.messageOwner.destroyTime = ttl + getConnectionsManager().getCurrentTime();
+            }
             if (currentEncryptedChat != null) {
                 getMessagesController().markMessageAsRead(dialog_id, messageObject.messageOwner.random_id, ttl);
             } else {
@@ -17000,8 +17002,10 @@ public class ChatActivity extends BaseFragment implements
             return () -> {
                 final boolean delete = messageObject.messageOwner.ttl != 0x7FFFFFFF;
                 final int ttl = messageObject.messageOwner.ttl == 0x7FFFFFFF ? 0 : messageObject.messageOwner.ttl;
-                messageObject.messageOwner.destroyTime = ttl + getConnectionsManager().getCurrentTime();
-                messageObject.messageOwner.destroyTimeMillis = ttl * 1000L + getConnectionsManager().getCurrentTimeMillis();
+                if (!NaConfig.INSTANCE.getEnableSaveDeletedMessages().Bool()) {
+                    messageObject.messageOwner.destroyTime = ttl + getConnectionsManager().getCurrentTime();
+                    messageObject.messageOwner.destroyTimeMillis = ttl * 1000L + getConnectionsManager().getCurrentTimeMillis();
+                }
                 if (currentEncryptedChat != null) {
                     getMessagesController().markMessageAsRead(dialog_id, messageObject.messageOwner.random_id, ttl);
                 } else {
@@ -17023,7 +17027,8 @@ public class ChatActivity extends BaseFragment implements
             return null;
         }
         final long taskId = getMessagesController().createDeleteShowOnceTask(dialog_id, messageObject.getId());
-        messageObject.forceExpired = true;
+        // don't render the message as expired when deleted-message saving is on
+        messageObject.forceExpired = !NaConfig.INSTANCE.getEnableSaveDeletedMessages().Bool();
         if (messageObject.isOutOwner() || !messageObject.isRoundOnce() && !messageObject.isVoiceOnce()) {
             ArrayList<MessageObject> msgs = new ArrayList<>();
             msgs.add(messageObject);
@@ -35558,9 +35563,12 @@ public class ChatActivity extends BaseFragment implements
                 }
                 sendSecretMessageRead(selectedObject, true, true);
 
-                var prefs = new AyuSavePreferences(selectedObject.messageOwner, currentAccount);
-                prefs.setDialogId(selectedObject.getDialogId());
-                AyuMessagesController.getInstance().onMessageDeleted(prefs);
+                if (!AyuState.isMessageBurned(currentAccount, selectedObject.getDialogId(), selectedObject.getId())) {
+                    var prefs = new AyuSavePreferences(selectedObject.messageOwner, currentAccount);
+                    prefs.setDialogId(selectedObject.getDialogId());
+                    AyuMessagesController.getInstance().onMessageDeleted(prefs);
+                }
+                AyuState.setMessageBurned(currentAccount, selectedObject.getDialogId(), selectedObject.getId());
 
                 Utilities.globalQueue.postRunnable(() -> sendSecretMediaDelete(selectedObject, true), 1000);
                 BotWebViewVibrationEffect.SELECTION_CHANGE.vibrate();
@@ -42213,10 +42221,12 @@ public class ChatActivity extends BaseFragment implements
                     }
                 } catch (Exception ignore) {}
                 secretVoicePlayer = new SecretVoicePlayer(getContext());
+                Runnable openAction = messageObject.isOutOwner() || NaConfig.INSTANCE.getEnableSaveDeletedMessages().Bool() ? null : sendSecretMessageRead(messageObject, true);
+                Runnable closeAction = !messageObject.isOutOwner() && !NaConfig.INSTANCE.getEnableSaveDeletedMessages().Bool() ? sendSecretMediaDelete(messageObject) : null;
                 secretVoicePlayer.setCell(
                     cell,
-                    !messageObject.isOutOwner() ? sendSecretMessageRead(messageObject, true) : null,
-                    !messageObject.isOutOwner() ? sendSecretMediaDelete(messageObject) : null
+                    openAction,
+                    closeAction
                 );
                 showDialog(secretVoicePlayer);
                 return false;
@@ -44350,9 +44360,23 @@ public class ChatActivity extends BaseFragment implements
                 restartSticker(cell);
                 emojiAnimationsOverlay.onTapItem(cell, ChatActivity.this, true);
                 chatListView.cancelClickRunnables(false);
-            } else if (message.needDrawBluredPreview()) {
+            } else if (message.needDrawBluredPreview(!message.messageOwner.ayuDeleted)) {
                 Runnable openAction = sendSecretMessageRead(message, false);
                 Runnable closeAction = sendSecretMediaDelete(message);
+                if (closeAction == null && NaConfig.INSTANCE.getEnableSaveDeletedMessages().Bool()) {
+                    // keep an archived copy and mark as viewed even though nothing gets deleted
+                    closeAction = () -> {
+                        boolean alreadyBurned = AyuState.isMessageBurned(currentAccount, message.getDialogId(), message.getId());
+                        AyuState.setMessageBurned(currentAccount, message.getDialogId(), message.getId());
+                        if (!alreadyBurned) {
+                            Utilities.globalQueue.postRunnable(() -> {
+                                var prefs = new AyuSavePreferences(message.messageOwner, currentAccount);
+                                prefs.setDialogId(message.getDialogId());
+                                AyuMessagesController.getInstance().onMessageEditedForce(prefs);
+                            });
+                        }
+                    };
+                }
                 cell.invalidate();
                 SecretMediaViewer.getInstance().setParentActivity(getParentActivity());
                 SecretMediaViewer.getInstance().openMedia(message, photoViewerProvider, openAction, closeAction);

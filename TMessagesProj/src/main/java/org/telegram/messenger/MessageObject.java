@@ -10096,8 +10096,19 @@ public class MessageObject {
     }
 
     public boolean needDrawBluredPreview() {
+        return needDrawBluredPreview(!NaConfig.INSTANCE.getEnableSaveDeletedMessages().Bool());
+    }
+
+    /**
+     * @param checkTtl 为 true 时检查原始 TTL，以供专用查看器和加密缓存使用。
+     */
+    public boolean needDrawBluredPreview(boolean checkTtl) {
         if (isRepostPreview) {
             return false;
+        }
+        if (!checkTtl) {
+            // show view-once media directly in the chat; only round videos stay blurred
+            return messageOwner instanceof TLRPC.TL_message && getMedia(messageOwner) != null && getMedia(messageOwner).ttl_seconds != 0 && isRoundVideo();
         }
         if (hasExtendedMediaPreview()) {
             return true;
@@ -12076,7 +12087,7 @@ public class MessageObject {
             TLRPC.PhotoSize currentPhotoObject = FileLoader.getClosestPhotoSizeWithSize(photoThumbs, AndroidUtilities.getPhotoSize(true));
             if (currentPhotoObject != null) {
                 File file = FileLoader.getInstance(currentAccount).getPathToMessage(messageOwner, useFileDatabaseQueue);
-                if (needDrawBluredPreview()) {
+                if (needDrawBluredPreview(true)) {
                     mediaExists = new File(file.getAbsolutePath() + ".enc").exists();
                 }
                 if (!mediaExists) {
@@ -12091,7 +12102,7 @@ public class MessageObject {
             }
             if (!attachPathExists) {
                 File file = FileLoader.getInstance(currentAccount).getPathToMessage(messageOwner, useFileDatabaseQueue);
-                if (type == TYPE_VIDEO && needDrawBluredPreview() || isVoiceOnce() || isRoundOnce()) {
+                if (type == TYPE_VIDEO && needDrawBluredPreview(true) || isVoiceOnce() || isRoundOnce()) {
                     mediaExists = new File(file.getAbsolutePath() + ".enc").exists();
                 }
                 if (!mediaExists) {

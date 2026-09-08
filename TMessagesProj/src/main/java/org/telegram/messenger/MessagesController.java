@@ -8485,7 +8485,8 @@ public class MessagesController extends BaseController implements NotificationCe
                         if (checkViewer && viewerObject != null && viewerObject.currentAccount == currentAccount && viewerObject.getDialogId() == dialogId && mids.contains(viewerObject.getId())) {
                             final int id = viewerObject.getId();
                             mids.remove((Integer) id);
-                            viewerObject.forceExpired = true;
+                            // don't render the message as expired when deleted-message saving is on
+                            viewerObject.forceExpired = !NaConfig.INSTANCE.getEnableSaveDeletedMessages().Bool();
                             final long taskId = createDeleteShowOnceTask(dialogId, id);
                             SecretMediaViewer.getInstance().setOnClose(() -> doDeleteShowOnceTask(taskId, dialogId, id));
                             getNotificationCenter().postNotificationName(NotificationCenter.updateMessageMedia, viewerObject.messageOwner);
@@ -14883,7 +14884,7 @@ public class MessagesController extends BaseController implements NotificationCe
             newTaskId = taskId;
         }
         int time = getConnectionsManager().getCurrentTime();
-        if (createDeleteTask) {
+        if (createDeleteTask && !NaConfig.INSTANCE.getEnableSaveDeletedMessages().Bool()) {
             getMessagesStorage().createTaskForMid(dialogId, mid, time, time, ttl, false);
         }
         if (inputChannel != null) {
@@ -14924,7 +14925,7 @@ public class MessagesController extends BaseController implements NotificationCe
         ArrayList<Long> randomIds = new ArrayList<>();
         randomIds.add(randomId);
         getSecretChatHelper().sendMessagesReadMessage(chat, randomIds, null);
-        if (ttl > 0) {
+        if (ttl > 0 && !NaConfig.INSTANCE.getEnableSaveDeletedMessages().Bool()) {
             int time = getConnectionsManager().getCurrentTime();
             getMessagesStorage().createTaskForSecretChat(chat.id, time, time, 0, randomIds);
         }

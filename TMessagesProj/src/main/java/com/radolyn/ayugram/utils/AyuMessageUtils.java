@@ -1,5 +1,7 @@
 package com.radolyn.ayugram.utils;
 
+import android.text.SpannableStringBuilder;
+import android.text.Spanned;
 import android.text.TextUtils;
 import android.util.Log;
 
@@ -19,8 +21,10 @@ import org.telegram.messenger.DialogObject;
 import org.telegram.messenger.FileLoader;
 import org.telegram.messenger.FileLog;
 import org.telegram.messenger.LiteMode;
+import org.telegram.messenger.LocaleController;
 import org.telegram.messenger.MessageObject;
 import org.telegram.messenger.MessagesController;
+import org.telegram.messenger.R;
 import org.telegram.messenger.UserConfig;
 import org.telegram.messenger.Utilities;
 import org.telegram.messenger.secretmedia.EncryptedFileInputStream;
@@ -28,7 +32,9 @@ import org.telegram.tgnet.NativeByteBuffer;
 import org.telegram.tgnet.TLObject;
 import org.telegram.tgnet.TLRPC;
 import org.telegram.tgnet.tl.TL_iv;
+import org.telegram.ui.ActionBar.Theme;
 import org.telegram.ui.ChatActivity;
+import org.telegram.ui.Components.ColoredImageSpan;
 
 import java.io.File;
 import java.io.FileOutputStream;
@@ -1440,6 +1446,103 @@ public abstract class AyuMessageUtils {
             }
         }
         return messagesController.getPeer(peerId);
+    }
+
+    private static SpannableStringBuilder oneViewIcon;
+    private static SpannableStringBuilder expiringIcon;
+    private static SpannableStringBuilder burntIcon;
+
+    private static void initializeIcons() {
+        // 图标只替换占位字符，不能扩展到后续追加的 TTL 文本和时间。
+        if (oneViewIcon == null) {
+            oneViewIcon = new SpannableStringBuilder("\u200B");
+            oneViewIcon.setSpan(new ColoredImageSpan(Theme.chat_oneViewDrawable), 0, 1, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
+        }
+        if (expiringIcon == null) {
+            expiringIcon = new SpannableStringBuilder("\u200B");
+            expiringIcon.setSpan(new ColoredImageSpan(Theme.chat_expiringDrawable), 0, 1, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
+        }
+        if (burntIcon == null) {
+            burntIcon = new SpannableStringBuilder("\u200B");
+            burntIcon.setSpan(new ColoredImageSpan(Theme.chat_burntDrawable), 0, 1, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
+        }
+    }
+
+    private static CharSequence getBurntIcon() {
+        initializeIcons();
+        return new SpannableStringBuilder().append(burntIcon);
+    }
+
+    private static int getBurntIconWidth() {
+        initializeIcons();
+        return Theme.chat_burntDrawable.getIntrinsicWidth();
+    }
+
+    /**
+     * 阅后即毁 / 自动销毁消息的时间标识。
+     * <ul>
+     *   <li>{@code ttl == 0x7FFFFFFF}：阅后即毁。非语音/圆视频显示 "one view" + 眼睛/已毁图标；
+     *       语音/圆视频仅在已毁时显示已毁图标。</li>
+     *   <li>其它 {@code ttl > 0}：显示 {@code Ns} + 倒计时/已毁图标。</li>
+     * </ul>
+     */
+    public static Triple formatTTL(MessageObject messageObject, boolean withIcon) {
+        if (messageObject == null || messageObject.messageOwner == null) {
+            return null;
+        }
+        int ttl = messageObject.messageOwner.ttl;
+        if (ttl == 0) {
+            return null;
+        }
+        TLRPC.MessageMedia media = messageObject.messageOwner.media;
+        if (media == null || media instanceof TLRPC.TL_messageMediaEmpty || messageObject.messageOwner.ayuDeleted) {
+            return null;
+        }
+        if (ttl < 0) {
+            ttl = 0;
+        }
+        initializeIcons();
+        boolean burned = AyuState.isMessageBurned(messageObject.currentAccount, messageObject.getDialogId(), messageObject.getId());
+        SpannableStringBuilder sb = new SpannableStringBuilder();
+
+        if (ttl == 0x7FFFFFFF) {
+            // 阅后即毁
+            if (!messageObject.isVoice() && !messageObject.isRoundVideo()) {
+                CharSequence icon = burned ? getBurntIcon() : oneViewIcon;
+                int width = burned ? getBurntIconWidth() : Theme.chat_oneViewDrawable.getIntrinsicWidth();
+                if (withIcon) {
+                    sb = (SpannableStringBuilder) sb.append(icon).append(" ");
+                }
+                return new Triple(sb.append(LocaleController.getString(R.string.OneViewTTL)), width, true);
+            }
+            if (burned && withIcon) {
+                return new Triple(sb.append(getBurntIcon()).append(" "), getBurntIconWidth(), false);
+            }
+            return null;
+        }
+
+        // 定时自动销毁
+        CharSequence icon = burned ? getBurntIcon() : expiringIcon;
+        int width = burned ? getBurntIconWidth() : Theme.chat_expiringDrawable.getIntrinsicWidth();
+        if (withIcon) {
+            sb = (SpannableStringBuilder) sb.append(icon).append(" ");
+        }
+        return new Triple(sb.append(String.valueOf(ttl)).append("s"), width, true);
+    }
+
+    /**
+     * {@link #formatTTL} 的返回结构：标识文本（含图标）、图标宽度、是否用 " | " 与时间分隔。
+     */
+    public static final class Triple {
+        public final CharSequence text;
+        public final int width;
+        public final boolean useSeparator;
+
+        Triple(CharSequence text, int width, boolean useSeparator) {
+            this.text = text;
+            this.width = width;
+            this.useSeparator = useSeparator;
+        }
     }
 
 }

@@ -4918,6 +4918,10 @@ public class MessagesStorage extends BaseController {
     }
 
     public void emptyMessagesMedia(long dialogId, ArrayList<Integer> mids) {
+        // view-once media must stay in the chat and on disk when deleted-message saving is on
+        if (NaConfig.INSTANCE.getEnableSaveDeletedMessages().Bool()) {
+            return;
+        }
         storageQueue.postRunnable(() -> {
             SQLiteCursor cursor = null;
             SQLitePreparedStatement state = null;
@@ -16133,6 +16137,12 @@ public class MessagesStorage extends BaseController {
 
     public void replaceMessageIfExists(TLRPC.Message message, ArrayList<TLRPC.User> users, ArrayList<TLRPC.Chat> chats, boolean broadcast) {
         if (message == null || message instanceof TLRPC.TL_messageEmpty) {
+            return;
+        }
+        // don't overwrite local media with the burned (empty) version coming from the server
+        TLRPC.MessageMedia media = message.media;
+        if (NaConfig.INSTANCE.getEnableSaveDeletedMessages().Bool() && media != null && media.ttl_seconds != 0
+                && (media.photo instanceof TLRPC.TL_photoEmpty || media.document instanceof TLRPC.TL_documentEmpty)) {
             return;
         }
         storageQueue.postRunnable(() -> {
