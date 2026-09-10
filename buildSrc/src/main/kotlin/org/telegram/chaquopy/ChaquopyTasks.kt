@@ -6,11 +6,13 @@ import org.gradle.api.file.ConfigurableFileCollection
 import org.gradle.api.file.DirectoryProperty
 import org.gradle.api.file.RegularFileProperty
 import org.gradle.api.provider.ListProperty
+import org.gradle.api.provider.MapProperty
 import org.gradle.api.provider.Property
 import org.gradle.api.tasks.Input
 import org.gradle.api.tasks.InputDirectory
 import org.gradle.api.tasks.InputFile
 import org.gradle.api.tasks.InputFiles
+import org.gradle.api.tasks.OutputDirectory
 import org.gradle.api.tasks.Optional
 import org.gradle.api.tasks.OutputFile
 import org.gradle.api.tasks.PathSensitive
@@ -175,13 +177,10 @@ abstract class ChaquopyClangLink @Inject constructor() : DefaultTask() {
  */
 abstract class ChaquopyBuildJson @Inject constructor() : DefaultTask() {
 
-    @get:InputDirectory
+    /** Per-base asset roots; every file below them is hashed with its base-relative path. */
+    @get:InputFiles
     @get:PathSensitive(PathSensitivity.RELATIVE)
-    abstract val staticAssets: DirectoryProperty
-
-    @get:InputDirectory
-    @get:PathSensitive(PathSensitivity.RELATIVE)
-    abstract val stagedAssets: DirectoryProperty
+    abstract val assetDirs: ConfigurableFileCollection
 
     @get:OutputFile
     abstract val outFile: RegularFileProperty
@@ -189,7 +188,7 @@ abstract class ChaquopyBuildJson @Inject constructor() : DefaultTask() {
     @TaskAction
     fun generate() {
         val entries = sortedMapOf<String, String>()
-        listOf(staticAssets.get().asFile, stagedAssets.get().asFile).forEach { base ->
+        assetDirs.files.filter { it.isDirectory }.forEach { base ->
             base.walkTopDown().filter { it.isFile && it.name != "build.json" }.forEach { f ->
                 val digest = MessageDigest.getInstance("SHA-1")
                 digest.update(f.readBytes())
@@ -207,5 +206,155 @@ abstract class ChaquopyBuildJson @Inject constructor() : DefaultTask() {
             }
             append("    },\n    \"extract_packages\": [],\n    \"python_version\": \"3.11\"\n}\n")
         })
+    }
+}
+
+/**
+ * Rebuilds stdlib-<abi>.imy (a flat zip of the selected CPython extension modules) from the
+ * lib-dynload/ directory of the Chaquopy target artifact, so the shipped native modules are
+ * byte-identical to upstream and no prebuilt imy is committed.
+ */
+abstract class ChaquopyFreezeStdlibAbi @Inject constructor() : DefaultTask() {
+
+    @get:InputFile
+    @get:PathSensitive(PathSensitivity.NONE)
+    abstract val targetZip: RegularFileProperty
+
+    @get:Input
+    abstract val moduleNames: ListProperty<String>
+
+    @get:OutputFile
+    abstract val outFile: RegularFileProperty
+
+    @TaskAction
+    fun freeze() {
+        val wanted = moduleNames.get().toSet()
+        val out = outFile.get().asFile
+        out.parentFile.mkdirs()
+        java.util.zip.ZipOutputStream(out.outputStream().buffered()).use { zos ->
+            java.util.zip.ZipFile(targetZip.get().asFile).use { zf ->
+                val seen = mutableSetOf<String>()
+                for (entry in zf.entries()) {
+                    if (entry.isDirectory) continue
+                    val name = entry.name.substringAfterLast('/')
+                    if (!entry.name.startsWith("lib-dynload/") || name !in wanted) continue
+                    if (!seen.add(name)) continue
+                    val e = java.util.zip.ZipEntry(name)
+                    e.method = java.util.zip.ZipEntry.DEFLATED
+                    zos.putNextEntry(e)
+                    zf.getInputStream(entry).use { it.copyTo(zos) }
+                    zos.closeEntry()
+                }
+                val missing = wanted - seen
+                if (missing.isNotEmpty()) {
+                    throw GradleException("stdlib-abi imy: modules missing from target zip: $missing")
+                }
+            }
+        }
+    }
+}
+
+/**
+ * Freezes bootstrap.imy + cacert.pem from source: the repo python sources under
+ * jni/chaquopy/bootstrap/java plus build-packages.zip and cacert.pem embedded in the upstream
+ * Chaquopy gradle plugin jar. Host Python must be 3.11.x (the target CPython) so the bytecode
+ * matches the runtime.
+ */
+abstract class ChaquopyFreezeBootstrap @Inject constructor() : DefaultTask() {
+
+    @get:InputFile
+    @get:PathSensitive(PathSensitivity.NONE)
+    abstract val pluginJar: RegularFileProperty
+
+    @get:InputDirectory
+    @get:PathSensitive(PathSensitivity.RELATIVE)
+    abstract val bootstrapDir: DirectoryProperty
+
+    @get:OutputDirectory
+    abstract val outDir: DirectoryProperty
+
+    @get:Inject
+    abstract val execOps: ExecOperations
+
+    @TaskAction
+    fun freeze() {
+        val python = findHostPython()
+        val check = execOps.exec {
+            commandLine(python, "-c", "import sys; assert sys.version_info[:2] == (3, 11), " +
+                "'bootstrap freeze needs host Python 3.11.x, got ' + sys.version")
+        }
+        check.assertNormalExitValue()
+        val src = bootstrapDir.get().asFile
+        val out = outDir.get().asFile
+        out.mkdirs()
+        execOps.exec {
+            commandLine(python, File(src, "freeze.py").absolutePath,
+                pluginJar.get().asFile.absolutePath, src.absolutePath, out.absolutePath)
+        }.assertNormalExitValue()
+    }
+}
+
+/**
+ * Downloads the pinned android wheels backing requirements-*.imy (pure-python plus the
+ * chaquopy cross-compiled ABI wheels) with pip; outputs are cached per requirements.txt.
+ */
+abstract class ChaquopyPipDownload @Inject constructor() : DefaultTask() {
+
+    @get:InputFile
+    @get:PathSensitive(PathSensitivity.NONE)
+    abstract val requirementsFile: RegularFileProperty
+
+    @get:Input
+    abstract val platformTags: ListProperty<String>
+
+    @get:OutputDirectory
+    abstract val wheelsDir: DirectoryProperty
+
+    @get:Inject
+    abstract val execOps: ExecOperations
+
+    @TaskAction
+    fun download() {
+        val python = findHostPython()
+        val dir = wheelsDir.get().asFile
+        dir.mkdirs()
+        val args = mutableListOf(python, "-m", "pip", "download", "--no-deps", "-q",
+            "-d", dir.absolutePath, "-r", requirementsFile.get().asFile.absolutePath,
+            "--only-binary=:all:", "--python-version", "311", "--abi", "cp311", "--abi", "none")
+        (platformTags.get() + "any").forEach { tag -> args.addAll(listOf("--platform", tag)) }
+        args.addAll(listOf("--index-url", "https://pypi.org/simple/",
+            "--extra-index-url", "https://chaquo.com/pypi-13.1/"))
+        execOps.exec { commandLine(args) }.assertNormalExitValue()
+    }
+}
+
+/** Freezes requirements-{common,abi}.imy from the downloaded wheels. */
+abstract class ChaquopyFreezeRequirements @Inject constructor() : DefaultTask() {
+
+    @get:Input
+    abstract val abiWheels: MapProperty<String, String>
+
+    @get:InputFile
+    @get:PathSensitive(PathSensitivity.NONE)
+    abstract val scriptFile: RegularFileProperty
+
+    @get:OutputDirectory
+    abstract val outDir: DirectoryProperty
+
+    @get:Inject
+    abstract val execOps: ExecOperations
+
+    @TaskAction
+    fun freeze() {
+        val python = findHostPython()
+        execOps.exec {
+            commandLine(python, "-c", "import sys; assert sys.version_info[:2] == (3, 11), " +
+                "'requirements freeze needs host Python 3.11.x, got ' + sys.version")
+        }.assertNormalExitValue()
+        val out = outDir.get().asFile
+        out.mkdirs()
+        val args = mutableListOf(python, scriptFile.get().asFile.absolutePath, out.absolutePath)
+        abiWheels.get().forEach { (abi, dir) -> args.add("$abi=$dir") }
+        execOps.exec { commandLine(args) }.assertNormalExitValue()
     }
 }
