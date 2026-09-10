@@ -119,6 +119,7 @@ public class MessageDetailsActivity extends BaseFragment implements Notification
     private int dateRow;
     private int editedRow;
     private int ttlRow;
+    private int deleteDateRow;
     private int readDateRow;
     private int forwardRow;
     private int restrictionReasonRow;
@@ -523,6 +524,7 @@ public class MessageDetailsActivity extends BaseFragment implements Notification
             com.radolyn.ayugram.utils.AyuMessageUtils.Triple ttl = com.radolyn.ayugram.utils.AyuMessageUtils.formatTTL(messageObject, false);
             ttlRow = (messageObject.messageOwner.ttl > 0 && ttl != null) ? rowCount++ : -1;
         }
+        deleteDateRow = messageObject.isAyuDeleted() && messageObject.messageOwner.ayuDeleteDate != 0 ? rowCount++ : -1;
         readDateRow = (messageObject.isOutOwner() && com.radolyn.ayugram.controllers.AyuSpyController.isEnabled()) ? rowCount++ : -1;
         forwardRow = messageObject.isForwarded() ? rowCount++ : -1;
         restrictionReasonRow = messageObject.messageOwner.restriction_reason.isEmpty() ? -1 : rowCount++;
@@ -701,6 +703,9 @@ public class MessageDetailsActivity extends BaseFragment implements Notification
                     } else if (position == ttlRow) {
                         com.radolyn.ayugram.utils.AyuMessageUtils.Triple ttl = com.radolyn.ayugram.utils.AyuMessageUtils.formatTTL(messageObject, false);
                         textCell.setTextAndValue("TTL", ttl != null ? ttl.text : "", divider);
+                    } else if (position == deleteDateRow) {
+                        long date = (long) messageObject.messageOwner.ayuDeleteDate * 1000;
+                        textCell.setTextAndValue("Deleted", LocaleController.formatString(R.string.formatDateAtTime, LocaleController.getInstance().getFormatterYear().format(new Date(date)), LocaleController.getInstance().getFormatterDay().format(new Date(date))), divider);
                     } else if (position == readDateRow) {
                         long dialogId = messageObject.getDialogId();
                         int msgId = messageObject.getId();

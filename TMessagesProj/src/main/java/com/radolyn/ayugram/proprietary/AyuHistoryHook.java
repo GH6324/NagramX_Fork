@@ -595,6 +595,7 @@ public abstract class AyuHistoryHook {
             }
         }
         tlMessage.ayuDeleted = true;
+        tlMessage.ayuDeleteDate = deletedMessageFull.message.entityCreateDate;
         AyuMessageUtils.mapMedia(deletedMessageFull.message, tlMessage, accountId);
         // 必须放在 mapMedia 之后：flags 是从库里原样读回的，若某些字段这次没能重建
         // （媒体反序列化失败、reply 头缺失等），对应 flag 位会与实际内容不符，

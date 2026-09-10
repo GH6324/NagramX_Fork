@@ -1157,6 +1157,7 @@ public class AyuViewDeleted extends NekoDelegateFragment {
         }
 
         tl.ayuDeleted = true;
+        tl.ayuDeleteDate = base.entityCreateDate;
         return new MessageObject(getCurrentAccount(), tl, false, true);
     }
 

@@ -26241,6 +26241,9 @@ public class ChatActivity extends BaseFragment implements
                 MessageObject currentMessage = messagesDict[0].get(mid);
                 if (currentMessage != null) {
                     currentMessage.messageOwner.ayuDeleted = true;
+                    if (currentMessage.messageOwner.ayuDeleteDate == 0) {
+                        currentMessage.messageOwner.ayuDeleteDate = ConnectionsManager.getInstance(currentAccount).getCurrentTime();
+                    }
                     chatAdapter.updateRowWithMessageObject(currentMessage, false, false);
                 }
             }
